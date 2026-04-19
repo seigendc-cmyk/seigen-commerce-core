@@ -1,5 +1,14 @@
 import type { InventoryItemType } from "../types/inventory-product-meta";
-import type { BomLine, Branch, Id, Product, ProductBom, StockRecord, Supplier } from "../types/models";
+import type {
+  BomLine,
+  Branch,
+  Id,
+  Product,
+  ProductBom,
+  StockRecord,
+  Supplier,
+  SupplierContactPerson,
+} from "../types/models";
 import { browserLocalJson } from "./storage";
 
 const NS = { namespace: "seigen.inventory", version: 1 as const };
@@ -49,6 +58,57 @@ type DbShape = {
   products: Product[];
   stock: StockRecord[];
 };
+
+function normalizeContactPerson(raw: unknown, generateId: () => Id): SupplierContactPerson | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const name = typeof o.name === "string" && o.name.trim() ? o.name.trim() : "";
+  if (!name) return null;
+  const id = typeof o.id === "string" && o.id.trim() ? o.id.trim() : generateId();
+  return {
+    id,
+    name,
+    role: typeof o.role === "string" && o.role.trim() ? o.role.trim() : undefined,
+    phone: typeof o.phone === "string" && o.phone.trim() ? o.phone.trim() : undefined,
+    email: typeof o.email === "string" && o.email.trim() ? o.email.trim() : undefined,
+    isPrimary: o.isPrimary === true,
+  };
+}
+
+/** Normalize supplier rows from local DB (defaults, trimmed strings, contact list). */
+export function normalizeSupplier(s: Supplier): Supplier {
+  const rawPersons = Array.isArray(s.contactPersons) ? s.contactPersons : [];
+  const persons: SupplierContactPerson[] = [];
+  for (const p of rawPersons) {
+    const cp = normalizeContactPerson(p, () => uid("ct"));
+    if (cp) persons.push(cp);
+  }
+  const paymentTermsDays =
+    typeof s.paymentTermsDays === "number" && Number.isFinite(s.paymentTermsDays) && s.paymentTermsDays >= 0
+      ? Math.min(365, Math.floor(s.paymentTermsDays))
+      : undefined;
+
+  return {
+    ...s,
+    name: (s.name ?? "").trim() || "Unnamed supplier",
+    contactName: s.contactName?.trim() || undefined,
+    phone: s.phone?.trim() || undefined,
+    email: s.email?.trim() || undefined,
+    address: s.address?.trim() || undefined,
+    addressLine1: s.addressLine1?.trim() || undefined,
+    addressLine2: s.addressLine2?.trim() || undefined,
+    city: s.city?.trim() || undefined,
+    region: s.region?.trim() || undefined,
+    postalCode: s.postalCode?.trim() || undefined,
+    country: s.country?.trim() || undefined,
+    accountNumber: s.accountNumber?.trim() || undefined,
+    businessTerms: s.businessTerms?.trim() || undefined,
+    taxId: s.taxId?.trim() || undefined,
+    paymentTermsDays,
+    contactPersons: persons.length > 0 ? persons : undefined,
+    updatedAt: s.updatedAt ?? s.createdAt,
+  };
+}
 
 const DEFAULT_BRANCH_ID = "branch_default";
 
@@ -183,17 +243,42 @@ export const InventoryRepo = {
 
   // Suppliers
   listSuppliers(): Supplier[] {
-    return getDb().suppliers.slice().sort((a, b) => a.name.localeCompare(b.name));
+    return getDb()
+      .suppliers.map((s) => normalizeSupplier(s))
+      .sort((a, b) => a.name.localeCompare(b.name));
   },
-  addSupplier(input: Omit<Supplier, "id" | "createdAt">): Supplier {
+  addSupplier(input: Omit<Supplier, "id" | "createdAt" | "updatedAt">): Supplier {
     const db = getDb();
-    const supplier: Supplier = { ...input, id: uid("sup"), createdAt: nowIso() };
+    const ts = nowIso();
+    const supplier = normalizeSupplier({
+      ...input,
+      id: uid("sup"),
+      createdAt: ts,
+      updatedAt: ts,
+    } as Supplier);
     db.suppliers.push(supplier);
     setDb(db);
     return supplier;
   },
   getSupplier(id: Id): Supplier | undefined {
-    return getDb().suppliers.find((s) => s.id === id);
+    const s = getDb().suppliers.find((x) => x.id === id);
+    return s ? normalizeSupplier(s) : undefined;
+  },
+  updateSupplier(id: Id, patch: Partial<Omit<Supplier, "id" | "createdAt">>): Supplier | undefined {
+    const db = getDb();
+    const idx = db.suppliers.findIndex((s) => s.id === id);
+    if (idx < 0) return undefined;
+    const prev = normalizeSupplier(db.suppliers[idx]!);
+    const next = normalizeSupplier({
+      ...prev,
+      ...patch,
+      id: prev.id,
+      createdAt: prev.createdAt,
+      updatedAt: nowIso(),
+    } as Supplier);
+    db.suppliers[idx] = next;
+    setDb(db);
+    return next;
   },
 
   // Products

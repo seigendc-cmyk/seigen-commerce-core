@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardTopBar } from "@/components/dashboard/dashboard-top-bar";
+import { computeCartSaleTax } from "@/modules/financial/lib/pos-sale-tax";
 import { cogsReservesLedgerStorageKey } from "@/modules/financial/services/cogs-reserves-ledger";
+import { FINANCIAL_LEDGERS_UPDATED_EVENT } from "@/modules/financial/services/financial-events";
+import { readTaxOnSalesSettings } from "@/modules/financial/services/tax-settings";
 import { landUnitCostFromReadModel } from "@/modules/financial/lib/cogs-cost";
 import { inventoryKeys } from "@/modules/inventory/services/inventory-repo";
 import { getProductReadModel, listProductReadModels } from "@/modules/inventory/services/product-read-model";
@@ -57,6 +60,7 @@ export function PosPage() {
   const [salesTick, setSalesTick] = useState(0);
   const [pinnedReceipt, setPinnedReceipt] = useState<Sale | null>(null);
   const [ideliverProviders, setIdeliverProviders] = useState<IdeliverExternalProvider[]>([]);
+  const [finTick, setFinTick] = useState(0);
 
   const refreshCatalog = useCallback(() => setCatalogVersion((v) => v + 1), []);
 
@@ -67,6 +71,12 @@ export function PosPage() {
   useEffect(() => {
     refreshIdeliver();
   }, [refreshIdeliver]);
+
+  useEffect(() => {
+    const onFin = () => setFinTick((t) => t + 1);
+    window.addEventListener(FINANCIAL_LEDGERS_UPDATED_EVENT, onFin);
+    return () => window.removeEventListener(FINANCIAL_LEDGERS_UPDATED_EVENT, onFin);
+  }, []);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -98,11 +108,16 @@ export function PosPage() {
     return m;
   }, [catalog]);
 
-  const amountDue = useMemo(() => cartAmountDue(cart, ideliverProviders), [cart, ideliverProviders]);
+  const amountDue = useMemo(() => cartAmountDue(cart, ideliverProviders), [cart, ideliverProviders, finTick]);
   const deliveryFeePreview = useMemo(
     () => computeCartDeliveryFee(cart, ideliverProviders),
     [cart, ideliverProviders],
   );
+  const cartTax = useMemo(() => {
+    void finTick;
+    return computeCartSaleTax(cart, ideliverProviders);
+  }, [cart, ideliverProviders, finTick]);
+  const taxSettingsPreview = useMemo(() => readTaxOnSalesSettings(), [finTick]);
 
   /** Estimated COGS for current cart (same basis as COGS Reserves posting on tender). */
   const estimatedCartCogs = useMemo(() => {
@@ -481,6 +496,15 @@ export function PosPage() {
                 <div className="flex items-baseline justify-between text-sm">
                   <span className="text-neutral-400">Delivery (iDeliver)</span>
                   <span className="font-semibold text-white">{money(deliveryFeePreview)}</span>
+                </div>
+              ) : null}
+              {cartTax.salesTax > 0 ? (
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className="text-neutral-400">
+                    {taxSettingsPreview.taxLabel}
+                    {taxSettingsPreview.pricesTaxInclusive ? " (in prices)" : " (added)"}
+                  </span>
+                  <span className="font-semibold text-white">{money(cartTax.salesTax)}</span>
                 </div>
               ) : null}
               <div className="flex items-baseline justify-between border-t border-white/10 pt-2">

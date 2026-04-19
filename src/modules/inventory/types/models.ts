@@ -32,14 +32,42 @@ export type Branch = {
   createdAt: string;
 };
 
+/** Named contact for purchasing / AP — multiple allowed per supplier. */
+export type SupplierContactPerson = {
+  id: Id;
+  name: string;
+  role?: string;
+  phone?: string;
+  email?: string;
+  /** Shown as primary in lists and on print. */
+  isPrimary?: boolean;
+};
+
 export type Supplier = {
   id: Id;
   name: string;
+  /** Legacy single contact — kept in sync when only one person existed. */
   contactName?: string;
   phone?: string;
   email?: string;
+  /** Legacy combined address line. Prefer structured fields below. */
   address?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  /** Supplier / vendor account reference (your code for them or theirs for you). */
+  accountNumber?: string;
+  /** Free-text commercial terms (e.g. Incoterms, rebates). */
+  businessTerms?: string;
+  /** Net days from invoice for due date and ageing (default 30 when unset). */
+  paymentTermsDays?: number;
+  taxId?: string;
+  contactPersons?: SupplierContactPerson[];
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type ProductImage = {
@@ -118,7 +146,15 @@ export type StockRecord = {
   updatedAt: string;
 };
 
-export type PurchaseOrderStatus = "draft" | "ordered" | "received" | "cancelled";
+export type PurchaseOrderStatus =
+  | "draft"
+  | "ordered"
+  | "partially_received"
+  | "received"
+  | "cancelled";
+
+/** Cash: settlement reduces COGS Reserves at order. Credit: increases supplier (creditor) AP in CashPlan / Financial. */
+export type PurchasePaymentTerms = "cash" | "credit";
 
 export type PurchaseOrderItem = {
   id: Id;
@@ -132,6 +168,8 @@ export type PurchaseOrder = {
   supplierId: Id;
   branchId: Id;
   status: PurchaseOrderStatus;
+  /** Default cash when omitted (legacy POs). */
+  paymentTerms?: PurchasePaymentTerms;
   reference?: string;
   notes?: string;
   items: PurchaseOrderItem[];

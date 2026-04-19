@@ -1,3 +1,4 @@
+import { readTaxOnSalesSettings } from "@/modules/financial/services/tax-settings";
 import type { Sale } from "../types/pos";
 import {
   formatReceiptMoney,
@@ -71,6 +72,16 @@ export function ReceiptPreview({ sale, meta = {}, className = "" }: Props) {
               {sale.ideliverProviderName ? ` · ${sale.ideliverProviderName}` : null}
             </span>
             <span className="text-white">{formatReceiptMoney(sale.deliveryFee)}</span>
+          </div>
+        ) : null}
+        {sale.salesTaxAmount && sale.salesTaxAmount > 0 ? (
+          <div className="flex justify-between text-neutral-400">
+            <span>
+              {readTaxOnSalesSettings().taxLabel}
+              {sale.taxRatePercentSnapshot != null ? ` (${sale.taxRatePercentSnapshot}%)` : null}
+              {sale.pricesTaxInclusiveSnapshot ? " · incl. in prices" : null}
+            </span>
+            <span className="text-white">{formatReceiptMoney(sale.salesTaxAmount)}</span>
           </div>
         ) : null}
         <div className="flex justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white">

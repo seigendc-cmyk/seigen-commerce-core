@@ -14,6 +14,12 @@ export type BrainEventSeverity = "debug" | "info" | "notice" | "warning" | "erro
  */
 export const BrainEventTypes = {
   POS_SALE_COMPLETED: "pos.sale.completed",
+  /** COGS Reserves used to settle supplier AP — notify finance / managers (Brain + optional email later). */
+  CASHPLAN_CREDITOR_PAYMENT: "cashplan.creditor.payment",
+  /** Missed AP/AR: user proposed a new payment/collection date — requires approval before schedule updates. */
+  CASHPLAN_SCHEDULE_CHANGE_REQUESTED: "cashplan.schedule.change.requested",
+  /** Schedule request approved or rejected (audit + notifications). */
+  CASHPLAN_SCHEDULE_CHANGE_RESOLVED: "cashplan.schedule.change.resolved",
 } as const;
 
 export type BrainEventType = (typeof BrainEventTypes)[keyof typeof BrainEventTypes];

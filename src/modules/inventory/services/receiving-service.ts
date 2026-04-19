@@ -1,4 +1,4 @@
-import type { GoodsReceipt, GoodsReceiptItem, Id } from "../types/models";
+import type { GoodsReceipt, GoodsReceiptItem, Id, PurchaseOrderStatus } from "../types/models";
 import { InventoryRepo } from "./inventory-repo";
 import { PurchasingService } from "./purchasing-service";
 import { browserLocalJson } from "./storage";
@@ -36,6 +36,18 @@ export const receivingKeys = {
   })(),
 };
 
+/** Cumulative received qty per product for a PO (all receipts). */
+export function getReceivedQtyByProductForPo(purchaseOrderId: Id): Map<Id, number> {
+  const receivedByProduct = new Map<Id, number>();
+  for (const r of getReceivingDb().receipts) {
+    if (r.purchaseOrderId !== purchaseOrderId) continue;
+    for (const it of r.items) {
+      receivedByProduct.set(it.productId, (receivedByProduct.get(it.productId) ?? 0) + it.receivedQty);
+    }
+  }
+  return receivedByProduct;
+}
+
 export const ReceivingService = {
   listReceipts(): GoodsReceipt[] {
     return getReceivingDb()
@@ -43,14 +55,46 @@ export const ReceivingService = {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
+  getReceivedQtyByProductForPo,
+
   receiveAgainstPurchaseOrder(input: {
     purchaseOrderId: Id;
+    /** Stock is posted to this branch (warehouse / shop). Defaults to the PO branch. */
+    branchId?: Id;
     receivedAt?: string;
     notes?: string;
     items: Array<{ productId: Id; receivedQty: number; unitCost: number }>;
   }): GoodsReceipt {
     const po = PurchasingService.getPurchaseOrder(input.purchaseOrderId);
     if (!po) throw new Error("Purchase order not found");
+    if (po.status === "draft") {
+      throw new Error("Mark the purchase order as ordered in Purchasing before receiving.");
+    }
+    if (po.status === "cancelled") {
+      throw new Error("This purchase order is cancelled.");
+    }
+    if (po.status === "received") {
+      throw new Error("This purchase order is already fully received.");
+    }
+    if (po.items.length === 0) {
+      throw new Error("Purchase order has no line items.");
+    }
+
+    const priorReceived = getReceivedQtyByProductForPo(po.id);
+    for (const i of input.items) {
+      if (i.receivedQty <= 0) continue;
+      const line = po.items.find((p) => p.productId === i.productId);
+      if (!line) {
+        throw new Error("A receive line does not match this purchase order.");
+      }
+      const prior = priorReceived.get(i.productId) ?? 0;
+      const remaining = line.orderedQty - prior;
+      if (i.receivedQty > remaining) {
+        throw new Error(
+          `Receive quantity exceeds remaining open qty for a line (${remaining} remaining).`,
+        );
+      }
+    }
 
     const receiptItems: GoodsReceiptItem[] = input.items
       .filter((i) => i.receivedQty > 0)
@@ -61,10 +105,20 @@ export const ReceivingService = {
         unitCost: Math.max(0, i.unitCost),
       }));
 
+    if (receiptItems.length === 0) {
+      throw new Error("Enter at least one line with quantity greater than zero.");
+    }
+
+    const targetBranchId = input.branchId ?? po.branchId;
+    const branch = InventoryRepo.getBranch(targetBranchId);
+    if (!branch) {
+      throw new Error("Select a valid warehouse / shop to receive into.");
+    }
+
     const receipt: GoodsReceipt = {
       id: uid("grn"),
       purchaseOrderId: po.id,
-      branchId: po.branchId,
+      branchId: targetBranchId,
       receivedAt: input.receivedAt ?? nowIso(),
       notes: input.notes,
       items: receiptItems,
@@ -77,7 +131,7 @@ export const ReceivingService = {
 
     // Stock updates.
     for (const item of receiptItems) {
-      InventoryRepo.incrementStock(po.branchId, item.productId, item.receivedQty);
+      InventoryRepo.incrementStock(targetBranchId, item.productId, item.receivedQty);
     }
 
     // If all items received (simple rule), mark PO received.
@@ -89,10 +143,11 @@ export const ReceivingService = {
         receivedByProduct.set(it.productId, (receivedByProduct.get(it.productId) ?? 0) + it.receivedQty);
       }
     }
-    const fullyReceived =
-      po.items.length > 0 &&
-      po.items.every((poi) => (receivedByProduct.get(poi.productId) ?? 0) >= poi.orderedQty);
-    PurchasingService.setStatus(po.id, fullyReceived ? "received" : "ordered");
+    const fullyReceived = po.items.every(
+      (poi) => (receivedByProduct.get(poi.productId) ?? 0) >= poi.orderedQty,
+    );
+    const nextStatus: PurchaseOrderStatus = fullyReceived ? "received" : "partially_received";
+    PurchasingService.setStatus(po.id, nextStatus);
 
     return receipt;
   },

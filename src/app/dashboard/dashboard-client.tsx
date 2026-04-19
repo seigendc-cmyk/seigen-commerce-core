@@ -43,6 +43,13 @@ const HUB_CARDS: HubCard[] = [
     href: "/dashboard/pos",
   },
   {
+    kind: "area",
+    area: "cashplan",
+    title: "CashPlan",
+    body: "What you owe suppliers, what debtors owe you, and goods on laybye — in one workspace view.",
+    href: "/dashboard/cash-plan",
+  },
+  {
     kind: "bundle",
     title: "Commerce & growth",
     body: "Storefront, promotions, APIs, and advanced capabilities as your plan allows.",
@@ -323,11 +330,12 @@ export function DashboardClient() {
               </div>
             ) : null}
             <div>
-              <dt className="text-neutral-400">Local gates (inventory / POS)</dt>
+              <dt className="text-neutral-400">Local gates (inventory / POS / CashPlan)</dt>
               <dd className="font-mono text-xs leading-relaxed text-neutral-200">
                 inventory_stock:{" "}
                 {planAllowsDashboardArea(effectivePlanId, "inventory") ? "allowed" : "blocked"} · pos_checkout:{" "}
-                {planAllowsDashboardArea(effectivePlanId, "pos") ? "allowed" : "blocked"}
+                {planAllowsDashboardArea(effectivePlanId, "pos") ? "allowed" : "blocked"} · cash_plan:{" "}
+                {planAllowsDashboardArea(effectivePlanId, "cashplan") ? "allowed" : "blocked"}
               </dd>
             </div>
           </dl>

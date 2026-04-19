@@ -2,46 +2,62 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardTopBar } from "@/components/dashboard/dashboard-top-bar";
 import { InventoryRepo, inventoryKeys } from "../services/inventory-repo";
 import { listProductReadModels } from "../services/product-read-model";
 import { PurchasingService, purchasingKeys } from "../services/purchasing-service";
 import { ReceivingService, receivingKeys } from "../services/receiving-service";
+import { listStocktakeSessions } from "../services/stocktake-service";
 import type { ProductReadModel } from "../types/product-read-model";
-import { INVENTORY_TAB_QUERY_ITEM_LIST } from "../inventory-nav";
+import { INVENTORY_TAB_QUERY_ITEM_LIST, INVENTORY_TAB_QUERY_STOCKTAKE } from "../inventory-nav";
 import { InventoryProductCatalogTab } from "./inventory-product-catalog-tab";
+import { InventoryStocktakeTab } from "./inventory-stocktake-tab";
 
 type Snapshot = {
   rows: ProductReadModel[];
   poCount: number;
+  outstandingPoCount: number;
   receiptCount: number;
+  stocktakeSessionCount: number;
 };
 
 function readSnapshot(): Snapshot {
   const branch = InventoryRepo.getDefaultBranch();
+  const pos = PurchasingService.listPurchaseOrders();
+  const outstandingPoCount = pos.filter(
+    (po) =>
+      (po.status === "ordered" || po.status === "partially_received") && po.items.length > 0,
+  ).length;
   return {
     rows: listProductReadModels(branch.id),
-    poCount: PurchasingService.listPurchaseOrders().length,
+    poCount: pos.length,
+    outstandingPoCount,
     receiptCount: ReceivingService.listReceipts().length,
+    stocktakeSessionCount: listStocktakeSessions(500).length,
   };
 }
 
-type InventoryTab = "overview" | "catalog";
+type InventoryTab = "overview" | "catalog" | "stocktake";
 
 export function InventoryOverview() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab");
   const tab: InventoryTab =
-    searchParams.get("tab") === INVENTORY_TAB_QUERY_ITEM_LIST || searchParams.get("tab") === "catalog"
+    rawTab === INVENTORY_TAB_QUERY_ITEM_LIST || rawTab === "catalog"
       ? "catalog"
-      : "overview";
+      : rawTab === INVENTORY_TAB_QUERY_STOCKTAKE
+        ? "stocktake"
+        : "overview";
 
   const selectTab = (id: InventoryTab) => {
     const params = new URLSearchParams(searchParams.toString());
     if (id === "catalog") {
       params.set("tab", INVENTORY_TAB_QUERY_ITEM_LIST);
+    } else if (id === "stocktake") {
+      params.set("tab", INVENTORY_TAB_QUERY_STOCKTAKE);
     } else {
       params.delete("tab");
     }
@@ -52,11 +68,15 @@ export function InventoryOverview() {
   const [snap, setSnap] = useState<Snapshot>(() => ({
     rows: [],
     poCount: 0,
+    outstandingPoCount: 0,
     receiptCount: 0,
+    stocktakeSessionCount: 0,
   }));
 
+  const refreshSnapshot = useCallback(() => setSnap(readSnapshot()), []);
+
   useEffect(() => {
-    setSnap(readSnapshot());
+    refreshSnapshot();
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
       if (
@@ -64,12 +84,17 @@ export function InventoryOverview() {
         e.key === purchasingKeys.purchasing ||
         e.key === receivingKeys.receiving
       ) {
-        setSnap(readSnapshot());
+        refreshSnapshot();
       }
     };
+    const onStocktake = () => refreshSnapshot();
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+    window.addEventListener("seigen-stocktake-posted", onStocktake);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("seigen-stocktake-posted", onStocktake);
+    };
+  }, [refreshSnapshot]);
 
   const lowStock = useMemo(() => snap.rows.filter((r) => r.onHandQty <= 0), [snap.rows]);
 
@@ -85,6 +110,7 @@ export function InventoryOverview() {
             [
               { id: "overview" as const, label: "Overview" },
               { id: "catalog" as const, label: "Item List" },
+              { id: "stocktake" as const, label: "Stocktake" },
             ] as const
           ).map((t) => (
             <button
@@ -106,9 +132,11 @@ export function InventoryOverview() {
           <InventoryProductCatalogTab rows={snap.rows} />
         ) : null}
 
+        {tab === "stocktake" ? <InventoryStocktakeTab onPosted={refreshSnapshot} /> : null}
+
         {tab === "overview" ? (
           <>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {[
             {
               title: "Products",
@@ -129,10 +157,22 @@ export function InventoryOverview() {
               cta: "Create PO",
             },
             {
+              title: "Outstanding orders",
+              value: snap.outstandingPoCount,
+              href: "/dashboard/inventory/receiving",
+              cta: "Receive goods",
+            },
+            {
               title: "Receipts",
               value: snap.receiptCount,
               href: "/dashboard/inventory/receiving",
               cta: "View receiving",
+            },
+            {
+              title: "Stocktake sessions",
+              value: snap.stocktakeSessionCount,
+              href: `/dashboard/inventory?tab=${INVENTORY_TAB_QUERY_STOCKTAKE}`,
+              cta: "Count stock",
             },
           ].map((card) => (
             <div key={card.title} className="vendor-panel rounded-2xl p-5">

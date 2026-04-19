@@ -5,7 +5,10 @@ import type { Cart, Payment, Sale, SaleLine, SaleStatus } from "../types/pos";
 import { cartAmountDue, computeCartDeliveryFee } from "./delivery-pricing";
 import { loadIdeliverProviders } from "./ideliver-repo";
 import { recordIdeliverDeliveryCredit } from "./ideliver-ledger";
+import { computeCartSaleTax } from "@/modules/financial/lib/pos-sale-tax";
 import { recordCogsReservesFromSale } from "@/modules/financial/services/cogs-reserves-ledger";
+import { readTaxOnSalesSettings } from "@/modules/financial/services/tax-settings";
+import { recordOutputTaxFromSale } from "@/modules/financial/services/tax-ledger";
 import { nextReceiptNumber } from "./receipt-number";
 import { validateStockForCart } from "./stock-validation";
 
@@ -81,6 +84,24 @@ export function normalizeSale(raw: unknown): Sale {
     payments: Array.isArray(s.payments) ? (s.payments as Payment[]) : [],
     totalPaid: typeof s.totalPaid === "number" ? roundMoney(s.totalPaid) : 0,
     changeDue: typeof s.changeDue === "number" ? roundMoney(s.changeDue) : 0,
+    salesTaxAmount:
+      typeof s.salesTaxAmount === "number" && Number.isFinite(s.salesTaxAmount)
+        ? roundMoney(s.salesTaxAmount)
+        : undefined,
+    taxableNetBase:
+      typeof s.taxableNetBase === "number" && Number.isFinite(s.taxableNetBase)
+        ? roundMoney(s.taxableNetBase)
+        : undefined,
+    taxableGoodsSubtotal:
+      typeof s.taxableGoodsSubtotal === "number" && Number.isFinite(s.taxableGoodsSubtotal)
+        ? roundMoney(s.taxableGoodsSubtotal)
+        : undefined,
+    taxRatePercentSnapshot:
+      typeof s.taxRatePercentSnapshot === "number" && Number.isFinite(s.taxRatePercentSnapshot)
+        ? roundMoney(s.taxRatePercentSnapshot)
+        : undefined,
+    pricesTaxInclusiveSnapshot:
+      typeof s.pricesTaxInclusiveSnapshot === "boolean" ? s.pricesTaxInclusiveSnapshot : undefined,
   };
 }
 
@@ -99,6 +120,7 @@ export function cartToSaleLines(cart: Cart): SaleLine[] {
     unitPrice: i.unitPrice,
     qty: i.qty,
     lineTotal: i.lineTotal,
+    taxable: i.taxable,
   }));
 }
 
@@ -112,7 +134,9 @@ export function buildSale(
   const providers = loadIdeliverProviders();
   const goods = roundMoney(cart.subtotal);
   const deliveryFee = computeCartDeliveryFee(cart, providers);
-  const amountDue = roundMoney(goods + deliveryFee);
+  const tax = computeCartSaleTax(cart, providers);
+  const amountDue = tax.amountDue;
+  const ts = readTaxOnSalesSettings();
 
   let ideliverProviderId: string | null = null;
   let ideliverProviderName: string | null = null;
@@ -127,6 +151,8 @@ export function buildSale(
 
   const totalPaid = roundMoney(Math.max(0, payment.amount));
   const changeDue = roundMoney(Math.max(0, totalPaid - amountDue));
+
+  const hasTax = ts.enabled && ts.ratePercent > 0 && tax.salesTax > 0;
 
   return {
     id: uid("sale"),
@@ -144,6 +170,11 @@ export function buildSale(
     payments: [payment],
     totalPaid,
     changeDue,
+    salesTaxAmount: hasTax ? tax.salesTax : undefined,
+    taxableNetBase: hasTax ? tax.taxableNetBase : undefined,
+    taxableGoodsSubtotal: hasTax ? tax.taxableGoodsGross : undefined,
+    taxRatePercentSnapshot: hasTax ? ts.ratePercent : undefined,
+    pricesTaxInclusiveSnapshot: hasTax ? ts.pricesTaxInclusive : undefined,
   };
 }
 
@@ -151,6 +182,9 @@ export function recordSale(sale: Sale): void {
   const db = getDb();
   db.sales.push(sale);
   setDb(db);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("seigen-pos-sale-recorded"));
+  }
 }
 
 export function validateTender(cart: Cart, payment: Payment): string | null {
@@ -185,6 +219,16 @@ export function finalizeSale(cart: Cart, payment: Payment): FinalizeSaleResult {
 
   recordSale(sale);
   recordCogsReservesFromSale(sale);
+
+  if (sale.salesTaxAmount && sale.salesTaxAmount > 0) {
+    recordOutputTaxFromSale({
+      saleId: sale.id,
+      receiptNumber: sale.receiptNumber,
+      amount: sale.salesTaxAmount,
+      taxableBase: sale.taxableNetBase ?? 0,
+      createdAt: sale.createdAt,
+    });
+  }
 
   if (sale.deliveryFee > 0 && sale.ideliverProviderId) {
     recordIdeliverDeliveryCredit({

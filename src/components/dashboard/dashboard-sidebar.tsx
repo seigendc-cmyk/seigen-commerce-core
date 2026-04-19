@@ -20,6 +20,14 @@ const items = [
   },
   { href: "/dashboard/pos", label: "Point of sale", exact: false as const, area: "pos" as DashboardProductArea },
   { href: "/dashboard/financial", label: "Financial", exact: false as const, area: undefined as undefined },
+  {
+    href: "/dashboard/cash-plan",
+    label: "CashPlan",
+    exact: false as const,
+    area: "cashplan" as DashboardProductArea,
+  },
+  { href: "/dashboard/brain", label: "Brain", exact: false as const, area: undefined as undefined },
+  { href: "/dashboard/bi/rules", label: "BI rules", exact: false as const, area: undefined as undefined },
   { href: "/dashboard/settings", label: "Settings", exact: false as const, area: undefined as undefined },
 ] as const;
 

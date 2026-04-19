@@ -30,6 +30,13 @@ export const DASHBOARD_AREA_GATES: Record<DashboardProductArea, DashboardAreaGat
     description:
       "Registers, checkout, tenders, and receipts require a plan that includes point of sale.",
   },
+  cashplan: {
+    requiredModules: ["cash_plan"],
+    title: "CashPlan",
+    shortLabel: "CashPlan",
+    description:
+      "Supplier balances, customer debtors, and laybye stock views require the CashPlan module on your subscription.",
+  },
 };
 
 /** Whether the plan grants access to a dashboard product area (local / static plan only). */

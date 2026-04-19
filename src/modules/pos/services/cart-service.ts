@@ -63,6 +63,7 @@ export function addOrIncrementFromProduct(cart: Cart, product: ProductReadModel,
         unitPrice,
         qty: add,
         lineTotal: lineTotal(unitPrice, add),
+        taxable: product.taxable !== false,
       },
     ];
   } else {
@@ -75,6 +76,7 @@ export function addOrIncrementFromProduct(cart: Cart, product: ProductReadModel,
             unitPrice,
             qty: nextQty,
             lineTotal: lineTotal(unitPrice, nextQty),
+            taxable: product.taxable !== false,
           }
         : it,
     );
@@ -90,7 +92,7 @@ export function setLineQty(cart: Cart, productId: string, qty: number, maxQty?: 
   if (maxQty !== undefined) q = Math.min(q, Math.max(0, Math.floor(maxQty)));
   if (q <= 0) return removeLine(cart, productId);
   const items = cart.items.map((it) =>
-    it.productId === productId ? { ...it, qty: q, lineTotal: lineTotal(it.unitPrice, q) } : it,
+    it.productId === productId ? { ...it, qty: q, lineTotal: lineTotal(it.unitPrice, q), taxable: it.taxable } : it,
   );
   return withSubtotal(items, cart.delivery);
 }

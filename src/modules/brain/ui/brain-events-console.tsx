@@ -12,7 +12,12 @@ function formatIso(iso: string) {
   }
 }
 
-export function BrainEventsConsole() {
+type BrainEventsConsoleProps = {
+  /** When embedded under Vendor Dashboard TopBar, hide the duplicate title block. */
+  showHeader?: boolean;
+};
+
+export function BrainEventsConsole({ showHeader = true }: BrainEventsConsoleProps) {
   const [module, setModule] = useState("");
   const [eventType, setEventType] = useState("");
   const [tenantId, setTenantId] = useState("");
@@ -51,14 +56,16 @@ export function BrainEventsConsole() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-b border-white/10 px-4 py-5 sm:px-6">
-        <h1 className="text-lg font-semibold text-white">Brain events</h1>
-        <p className="mt-1 max-w-3xl text-sm text-neutral-400">
-          Operational memory stream — raw facts from emitters (start:{" "}
-          <code className="rounded bg-white/10 px-1 text-xs text-brand-orange">{BrainEventTypes.POS_SALE_COMPLETED}</code>
-          ). Rules, alerts, and scores build on this layer later.
-        </p>
-      </header>
+      {showHeader ? (
+        <header className="border-b border-white/10 px-4 py-5 sm:px-6">
+          <h1 className="text-lg font-semibold text-white">Brain events</h1>
+          <p className="mt-1 max-w-3xl text-sm text-neutral-400">
+            Operational memory stream — raw facts from emitters (start:{" "}
+            <code className="rounded bg-white/10 px-1 text-xs text-brand-orange">{BrainEventTypes.POS_SALE_COMPLETED}</code>
+            ). Rules, alerts, and scores build on this layer later.
+          </p>
+        </header>
+      ) : null}
 
       <div className="border-b border-white/10 px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-end gap-3">

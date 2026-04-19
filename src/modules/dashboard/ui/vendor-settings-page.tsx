@@ -17,6 +17,9 @@ import { BanksSettingsForm } from "@/modules/dashboard/settings/banks/banks-sett
 import { CoaSettingsForm } from "@/modules/dashboard/settings/coa/coa-settings-form";
 import { ReportWriterSettingsForm } from "@/modules/dashboard/settings/report-writer/report-writer-settings-form";
 import { BillingSettingsForm } from "@/modules/dashboard/settings/billing/billing-settings-form";
+import { BankAccountsSettingsForm } from "@/modules/dashboard/settings/bank-accounts/bank-accounts-settings-form";
+import { CashBookSettingsForm } from "@/modules/dashboard/settings/cash-book/cash-book-settings-form";
+import { TaxSettingsForm } from "@/modules/dashboard/settings/tax/tax-settings-form";
 import {
   normalizeVendorSettingsTab,
   VENDOR_SETTINGS_DEFAULT_TAB,
@@ -108,8 +111,14 @@ export function VendorSettingsPage() {
             <DevicesSettingsForm />
           ) : tab === "banks" ? (
             <BanksSettingsForm />
+          ) : tab === "cash-book" ? (
+            <CashBookSettingsForm />
+          ) : tab === "bank-accounts" ? (
+            <BankAccountsSettingsForm />
           ) : tab === "coa" ? (
             <CoaSettingsForm />
+          ) : tab === "tax" ? (
+            <TaxSettingsForm />
           ) : tab === "report-writer" ? (
             <ReportWriterSettingsForm />
           ) : tab === "billing" ? (

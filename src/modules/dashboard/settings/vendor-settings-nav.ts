@@ -11,7 +11,10 @@ export type VendorSettingsTabId =
   | "currency"
   | "devices"
   | "banks"
+  | "cash-book"
+  | "bank-accounts"
   | "coa"
+  | "tax"
   | "report-writer"
   | "billing";
 
@@ -30,7 +33,10 @@ export const VENDOR_SETTINGS_TABS: SettingsTabDef[] = [
   { id: "currency", label: "Currency", hint: "Base, reporting & transaction currencies" },
   { id: "devices", label: "Devices", hint: "Printers, scanners, drawers, displays" },
   { id: "banks", label: "Banks", hint: "Institutions & provider connections" },
+  { id: "cash-book", label: "Cash Book", hint: "Cash ledger — link to Financial CashBook" },
+  { id: "bank-accounts", label: "Bank accounts", hint: "Bank ledger — link to Financial CashBook" },
   { id: "coa", label: "COA", hint: "Ledger, subaccounts & double-entry" },
+  { id: "tax", label: "Tax", hint: "Sales & purchase VAT/GST, POS and PO postings, tax ledger" },
   { id: "report-writer", label: "Report Writer", hint: "Templates, layouts & scheduled exports" },
   { id: "billing", label: "Billing", hint: "Plans, invoices, activation codes" },
 ];
@@ -123,6 +129,24 @@ export const VENDOR_SETTINGS_PANEL_COPY: Record<VendorSettingsTabId, SettingsPan
       "Simulated connect flow stands in until live OAuth and secure vault storage are enabled.",
     ],
   },
+  "cash-book": {
+    title: "Cash Book",
+    lead:
+      "Jump to the Cash Transactions ledger under Financial to record drawer cash and transfers that fund COGS Reserves.",
+    pillars: [
+      "Local ledger key seigen.financial:v1:cash_book mirrors the CashBook tab.",
+      "Use transfers from cash to increase inventory funding in COGS Reserves.",
+    ],
+  },
+  "bank-accounts": {
+    title: "Bank accounts",
+    lead:
+      "The operating bank ledger pairs with the Cash Book under Financial — same CashBook tab, separate running balance.",
+    pillars: [
+      "Bank → COGS transfers post here and increase COGS Reserves for stock purchases.",
+      "Links to institutions under Banks when feeds are connected.",
+    ],
+  },
   coa: {
     title: "Chart of accounts (COA)",
     lead:
@@ -130,6 +154,14 @@ export const VENDOR_SETTINGS_PANEL_COPY: Record<VendorSettingsTabId, SettingsPan
     pillars: [
       "Account classes with debit/credit normal balances for validated journals.",
       "Designed to integrate with cashbooks, COGS, banks, POS, and inventory postings.",
+    ],
+  },
+  tax: {
+    title: "Tax",
+    lead: "Configure output tax on POS sales and input tax on purchase orders; review the running tax ledger in one place.",
+    pillars: [
+      "Rates, labels, and inclusive vs exclusive pricing for shelf and purchase costs.",
+      "Ledger rows tie to receipt numbers and PO references when postings occur.",
     ],
   },
   "report-writer": {

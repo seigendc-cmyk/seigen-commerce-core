@@ -22,6 +22,12 @@ export const DASHBOARD_MENU_PERMISSIONS = [
     description: "Registers, checkout, receipts",
   },
   {
+    id: "bi-rules",
+    label: "BI rules",
+    href: "/dashboard/bi/rules",
+    description: "Business rules and routable policies for modules",
+  },
+  {
     id: "settings",
     label: "Settings",
     href: "/dashboard/settings",

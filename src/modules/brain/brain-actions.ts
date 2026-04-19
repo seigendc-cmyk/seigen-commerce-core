@@ -117,6 +117,208 @@ export async function emitPosSaleCompletedBrainEvent(input: {
   return { ok: true, id: data.id as string };
 }
 
+/**
+ * COGS Reserves used to pay suppliers — surfaces in Brain for finance / managers.
+ */
+export async function emitCreditorPaymentBrainEvent(input: {
+  batchId: string;
+  total: number;
+  branchId: string;
+  correlationId: string;
+  allocations: Array<{ supplierId: string; supplierName: string; amount: number }>;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    batchId: input.batchId,
+    total: input.total,
+    branchId: input.branchId,
+    supplierCount: input.allocations.length,
+    allocations: input.allocations.map((a) => ({
+      supplierId: a.supplierId,
+      supplierName: a.supplierName,
+      amount: a.amount,
+    })),
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CASHPLAN_CREDITOR_PAYMENT,
+      module: "cashplan",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "creditor_payment_batch",
+      entity_id: input.batchId,
+      occurred_at: new Date().toISOString(),
+      severity: "notice" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitCashPlanScheduleChangeRequestedBrainEvent(input: {
+  requestId: string;
+  kind: "creditor" | "debtor";
+  entityId: string;
+  entityName: string;
+  proposedDateIso: string;
+  previousDateKey?: string;
+  branchId: string;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    requestId: input.requestId,
+    kind: input.kind,
+    entityId: input.entityId,
+    entityName: input.entityName,
+    proposedDateIso: input.proposedDateIso,
+    previousDateKey: input.previousDateKey,
+    missed: true,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CASHPLAN_SCHEDULE_CHANGE_REQUESTED,
+      module: "cashplan",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "schedule_change_request",
+      entity_id: input.requestId,
+      occurred_at: new Date().toISOString(),
+      severity: "warning" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitCashPlanScheduleChangeResolvedBrainEvent(input: {
+  requestId: string;
+  kind: "creditor" | "debtor";
+  entityId: string;
+  entityName: string;
+  resolution: "approved" | "rejected";
+  proposedDateIso: string;
+  branchId: string;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    requestId: input.requestId,
+    kind: input.kind,
+    entityId: input.entityId,
+    entityName: input.entityName,
+    resolution: input.resolution,
+    proposedDateIso: input.proposedDateIso,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CASHPLAN_SCHEDULE_CHANGE_RESOLVED,
+      module: "cashplan",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "schedule_change_request",
+      entity_id: input.requestId,
+      occurred_at: new Date().toISOString(),
+      severity: (input.resolution === "approved" ? "notice" : "info") as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
 export async function listBrainEvents(filters: ListBrainEventsInput = {}): Promise<ListBrainEventsResult> {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "Supabase is not configured." };

@@ -1,4 +1,5 @@
 import type { IdeliverExternalProvider, IdeliverFareBand } from "@/modules/dashboard/settings/ideliver/ideliver-types";
+import { computeCartSaleTax } from "@/modules/financial/lib/pos-sale-tax";
 import type { Cart } from "../types/pos";
 
 function roundMoney(n: number): number {
@@ -30,7 +31,5 @@ export function computeCartDeliveryFee(cart: Cart, providers: IdeliverExternalPr
 }
 
 export function cartAmountDue(cart: Cart, providers: IdeliverExternalProvider[]): number {
-  const goods = roundMoney(cart.subtotal);
-  const del = computeCartDeliveryFee(cart, providers);
-  return roundMoney(goods + del);
+  return computeCartSaleTax(cart, providers).amountDue;
 }

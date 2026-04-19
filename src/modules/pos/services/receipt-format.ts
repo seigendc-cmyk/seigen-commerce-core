@@ -1,3 +1,4 @@
+import { readTaxOnSalesSettings } from "@/modules/financial/services/tax-settings";
 import type { PaymentMethod, Sale } from "../types/pos";
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
@@ -122,6 +123,12 @@ export function formatReceiptPlainText(sale: Sale, meta: ReceiptFormatMeta = {})
         W,
       ),
     );
+  }
+  if (sale.salesTaxAmount && sale.salesTaxAmount > 0) {
+    const tl = readTaxOnSalesSettings().taxLabel;
+    const pct = sale.taxRatePercentSnapshot != null ? ` (${sale.taxRatePercentSnapshot}%)` : "";
+    const incl = sale.pricesTaxInclusiveSnapshot ? " · incl. in prices" : "";
+    lines.push(lineLR(`${tl}${pct}${incl}`, formatReceiptMoney(sale.salesTaxAmount), W));
   }
   lines.push(lineLR("AMOUNT DUE", formatReceiptMoney(sale.amountDue), W));
   lines.push(repeatChar("-", W));
@@ -292,6 +299,16 @@ export function buildReceiptPrintHtmlDocument(sale: Sale, meta: ReceiptFormatMet
   <table class="totals">
     <tr><td>Goods subtotal</td><td>${formatReceiptMoney(sale.subtotal)}</td></tr>
     ${sale.deliveryFee > 0 ? `<tr><td>Delivery (iDeliver)</td><td>${formatReceiptMoney(sale.deliveryFee)}</td></tr>` : ""}
+    ${
+      sale.salesTaxAmount && sale.salesTaxAmount > 0
+        ? (() => {
+            const tl = readTaxOnSalesSettings().taxLabel;
+            const pct = sale.taxRatePercentSnapshot != null ? ` (${sale.taxRatePercentSnapshot}%)` : "";
+            const incl = sale.pricesTaxInclusiveSnapshot ? " · incl. in prices" : "";
+            return `<tr><td>${escapeHtml(`${tl}${pct}${incl}`)}</td><td>${formatReceiptMoney(sale.salesTaxAmount)}</td></tr>`;
+          })()
+        : ""
+    }
     <tr class="grand"><td>Amount due</td><td>${formatReceiptMoney(sale.amountDue)}</td></tr>
   </table>
   <table class="totals">

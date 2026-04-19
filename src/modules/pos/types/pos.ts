@@ -16,6 +16,8 @@ export type CartItem = {
   unitPrice: number;
   qty: number;
   lineTotal: number;
+  /** From catalog; when false, line is exempt from sales tax. */
+  taxable?: boolean;
 };
 
 export type CartDelivery = {
@@ -43,6 +45,7 @@ export type SaleLine = {
   unitPrice: number;
   qty: number;
   lineTotal: number;
+  taxable?: boolean;
 };
 
 export type IdeliverFareSource = "none" | "computed" | "override";
@@ -72,4 +75,14 @@ export type Sale = {
   totalPaid: number;
   /** Cash-style change; 0 if exact or non-cash emphasis. */
   changeDue: number;
+  /** Output tax (VAT/GST) when Settings → Tax on sales is enabled. */
+  salesTaxAmount?: number;
+  /** Net amount tax was computed on (exclusive value of taxable goods + taxed delivery). */
+  taxableNetBase?: number;
+  /** Gross taxable goods (sum of taxable line totals before tax extraction). */
+  taxableGoodsSubtotal?: number;
+  /** Rate % stored at time of sale. */
+  taxRatePercentSnapshot?: number;
+  /** Whether shelf prices were tax-inclusive at time of sale. */
+  pricesTaxInclusiveSnapshot?: boolean;
 };

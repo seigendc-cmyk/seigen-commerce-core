@@ -1,0 +1,145 @@
+"use server";
+
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { Sale } from "@/modules/pos/types/pos";
+import { BrainEventTypes, type BrainEventSeverity } from "./types/brain-event";
+
+export type EmitBrainEventResult =
+  | { ok: true; id: string }
+  | { ok: true; skipped: true; reason: string }
+  | { ok: false; error: string };
+
+export type BrainEventRow = {
+  id: string;
+  event_type: string;
+  module: string;
+  tenant_id: string | null;
+  branch_id: string | null;
+  actor_id: string | null;
+  actor_type: string;
+  entity_type: string;
+  entity_id: string;
+  occurred_at: string;
+  severity: BrainEventSeverity;
+  correlation_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+export type ListBrainEventsInput = {
+  module?: string;
+  eventType?: string;
+  tenantId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+};
+
+export type ListBrainEventsResult =
+  | { ok: true; events: BrainEventRow[] }
+  | { ok: false; error: string };
+
+/**
+ * Record a completed POS sale — primary vertical slice for Brain memory.
+ */
+export async function emitPosSaleCompletedBrainEvent(input: {
+  sale: Sale;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const s = input.sale;
+  const payload = {
+    receiptNumber: s.receiptNumber,
+    saleId: s.id,
+    branchId: s.branchId,
+    status: s.status,
+    subtotal: s.subtotal,
+    deliveryFee: s.deliveryFee,
+    amountDue: s.amountDue,
+    totalPaid: s.totalPaid,
+    changeDue: s.changeDue,
+    lineCount: s.lines.length,
+    lines: s.lines.slice(0, 80).map((l) => ({
+      productId: l.productId,
+      sku: l.sku,
+      name: l.name,
+      qty: l.qty,
+      lineTotal: l.lineTotal,
+    })),
+    payments: s.payments.map((p) => ({ method: p.method, amount: p.amount })),
+    ideliverProviderId: s.ideliverProviderId,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.POS_SALE_COMPLETED,
+      module: "pos",
+      tenant_id: membership.tenant_id as string,
+      branch_id: s.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "sale",
+      entity_id: s.id,
+      occurred_at: s.createdAt,
+      severity: "info",
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function listBrainEvents(filters: ListBrainEventsInput = {}): Promise<ListBrainEventsResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "Supabase is not configured." };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Sign in to view Brain events." };
+  }
+
+  const limit = Math.min(Math.max(filters.limit ?? 150, 1), 500);
+  let q = supabase.from("brain_events").select("*").order("occurred_at", { ascending: false }).limit(limit);
+
+  if (filters.module?.trim()) q = q.eq("module", filters.module.trim());
+  if (filters.eventType?.trim()) q = q.eq("event_type", filters.eventType.trim());
+  if (filters.tenantId?.trim()) q = q.eq("tenant_id", filters.tenantId.trim());
+  if (filters.from?.trim()) q = q.gte("occurred_at", filters.from.trim());
+  if (filters.to?.trim()) q = q.lte("occurred_at", filters.to.trim());
+
+  const { data, error } = await q;
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, events: (data ?? []) as BrainEventRow[] };
+}

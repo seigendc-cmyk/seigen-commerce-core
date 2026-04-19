@@ -1,26 +1,185 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Marketing / default shell */
+  --background: #efe6dd;
+  --foreground: #1a1a1a;
+
+  /* Vendor dashboard: light orange wash — use via .vendor-core-bg */
+  --vendor-bg: radial-gradient(1100px 560px at 15% 10%, rgba(255, 210, 160, 0.72), rgba(255, 210, 160, 0) 56%),
+    radial-gradient(900px 480px at 88% 22%, rgba(255, 186, 130, 0.48), rgba(255, 186, 130, 0) 52%),
+    radial-gradient(700px 420px at 48% 92%, rgba(232, 93, 4, 0.14), rgba(232, 93, 4, 0) 48%),
+    linear-gradient(165deg, #fff6ec 0%, #ffe8d4 45%, #ffd8b8 100%);
+
+  /**
+   * Vendor “core app” cards — warm charcoal tiers (lighter than near-black; still dark UI for contrast with orange wash).
+   * Tweak these to shift every .vendor-panel / .vendor-panel-soft instance at once.
+   */
+  --vendor-panel-surface: linear-gradient(
+    165deg,
+    rgba(58, 58, 62, 0.97) 0%,
+    rgba(44, 44, 48, 0.98) 48%,
+    rgba(38, 38, 42, 0.99) 100%
+  );
+  --vendor-panel-border: rgba(255, 255, 255, 0.2);
+  --vendor-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset, 0 14px 36px rgba(15, 12, 8, 0.28);
+
+  --vendor-panel-soft-surface: rgba(52, 52, 56, 0.9);
+  --vendor-panel-soft-border: rgba(255, 255, 255, 0.16);
+
+  /* Form fields sit on panels — slightly lifted from old #1e1e1e to match new surfaces */
+  --vendor-field-bg: #2e2e32;
+  --vendor-field-border: rgba(255, 255, 255, 0.2);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
+}
+
+.vendor-core-bg {
+  background: var(--vendor-bg);
+}
+
+/* Elevated warm-gray surfaces over the orange wash (core app cards, chrome, POS shells) */
+.vendor-panel {
+  color-scheme: dark;
+  background: var(--vendor-panel-surface);
+  border: 1px solid var(--vendor-panel-border);
+  box-shadow: var(--vendor-panel-shadow);
+}
+
+.vendor-panel-soft {
+  color-scheme: dark;
+  background: var(--vendor-panel-soft-surface);
+  border: 1px solid var(--vendor-panel-soft-border);
+}
+
+/**
+ * Inputs on dark panels: solid fill + explicit text color.
+ * Avoids white-on-white when UA autofill or translucent Tailwind bg wins the cascade.
+ */
+.vendor-field {
+  background-color: var(--vendor-field-bg);
+  color: #f5f5f5;
+  border: 1px solid var(--vendor-field-border);
+}
+
+.vendor-field::placeholder {
+  color: #a3a3a3;
+}
+
+.vendor-field:focus,
+.vendor-field:focus-visible {
+  outline: none;
+  border-color: rgba(232, 93, 4, 0.55);
+  box-shadow: 0 0 0 2px rgba(232, 93, 4, 0.35);
+}
+
+.vendor-field:-webkit-autofill,
+.vendor-field:-webkit-autofill:hover,
+.vendor-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f5f5f5;
+  caret-color: #f5f5f5;
+  transition: background-color 99999s ease-out;
+  -webkit-box-shadow: 0 0 0 1000px var(--vendor-field-bg) inset;
+  box-shadow: 0 0 0 1000px var(--vendor-field-bg) inset;
+}
+
+/* Empty / hint regions on dark panels */
+.vendor-empty {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ececec;
+}
+
+/* Executive surface: governance-first dark shell */
+.executive-core-bg {
+  background:
+    radial-gradient(1200px 640px at 18% 8%, rgba(232, 93, 4, 0.22), rgba(232, 93, 4, 0) 55%),
+    radial-gradient(900px 520px at 88% 18%, rgba(255, 190, 140, 0.08), rgba(255, 190, 140, 0) 60%),
+    linear-gradient(165deg, #0b0b0b 0%, #121212 55%, #0f0f0f 100%);
+}
+
+.executive-panel {
+  background: rgba(16, 16, 16, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+.executive-panel-soft {
+  background: rgba(16, 16, 16, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/**
+ * Vendor main column (orange wash): default readable foreground for chrome outside `.vendor-panel`.
+ * Dark panels and explicit `text-white` / `text-neutral-*` on children still win via utilities.
+ */
+@layer components {
+  .vendor-dashboard-surface {
+    @apply text-neutral-900;
+  }
+
+  /* Segmented tabs / pill toggles on the orange wash — inactive stays legible, active stays dominant */
+  .vendor-seg-tab {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-colors;
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange/50;
+  }
+
+  .vendor-seg-tab-compact {
+    @apply px-3 py-2;
+  }
+
+  .vendor-seg-tab-active {
+    @apply bg-brand-orange text-white;
+    @apply hover:bg-brand-orange-hover hover:text-white;
+  }
+
+  .vendor-seg-tab-inactive {
+    @apply border border-neutral-900/20 bg-white/80 text-brand-charcoal;
+    @apply hover:border-brand-orange/50 hover:bg-white hover:text-brand-charcoal;
+  }
+
+  .vendor-seg-tab-inactive:disabled {
+    @apply cursor-not-allowed border-neutral-400/50 bg-white/50 text-neutral-500 opacity-90;
+    @apply hover:border-neutral-400/50 hover:bg-white/50 hover:text-neutral-500;
+  }
+
+  /* Outline / secondary actions on the orange wash */
+  .vendor-btn-secondary-wash {
+    @apply rounded-lg border border-neutral-900/25 bg-white/80 px-3 py-2 text-sm font-semibold text-brand-charcoal shadow-sm transition-colors;
+    @apply hover:border-brand-orange/55 hover:bg-white hover:text-brand-charcoal;
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange/45;
+  }
+
+  .vendor-btn-secondary-wash:disabled {
+    @apply cursor-not-allowed border-neutral-400/60 bg-white/50 text-neutral-500 opacity-80;
+    @apply hover:border-neutral-400/60 hover:bg-white/50 hover:text-neutral-500;
+  }
+
+  /* Secondary / ghost controls on dark charcoal sidebars and top bar */
+  .vendor-btn-secondary-dark {
+    @apply rounded-lg border border-white/25 bg-white/[0.07] px-3 py-2 text-sm font-medium text-neutral-100 shadow-sm transition-colors;
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange/45;
+  }
+
+  /* Plain CSS hover: @apply cannot use some opacity shorthands (e.g. hover:bg-white/12) in all Tailwind builds */
+  .vendor-btn-secondary-dark:hover {
+    border-color: rgba(232, 93, 4, 0.55);
+    background-color: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  .vendor-nav-link-inactive {
+    @apply text-neutral-200 hover:bg-white/[0.08] hover:text-white;
+  }
 }

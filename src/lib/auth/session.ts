@@ -1,35 +1,14 @@
-import { redirect } from "next/navigation";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-import { createClient } from "@/lib/supabase/server";
-
-export async function getSession() {
-  const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session;
-}
-
-/** Prefer this on the server — validates the JWT with Supabase Auth. */
-export async function getUser() {
-  const supabase = await createClient();
+/** Server-only: current Supabase user or null. */
+export async function getServerAuthUser() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createServerSupabaseClient();
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
-  if (error) {
-    return null;
-  }
-  return user;
-}
-
-export async function requireUser(options?: { next?: string }) {
-  const user = await getUser();
-  if (!user) {
-    const next = options?.next ?? "/dashboard";
-    const q = new URLSearchParams();
-    q.set("next", next);
-    redirect(`/signin?${q.toString()}`);
-  }
+  if (error || !user) return null;
   return user;
 }

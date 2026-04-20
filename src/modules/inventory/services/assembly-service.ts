@@ -40,7 +40,14 @@ export function executeAssemblyBuild(parentProductId: Id, qtyToBuild: number): A
     return { ok: false, error: "Define assembly components on the product BOM before building stock." };
   }
 
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch();
+  if (!branch) {
+    return {
+      ok: false,
+      error:
+        "No trading shop — assembly moves stock at a store or warehouse. Add a trading branch under Inventory → Overview.",
+    };
+  }
 
   for (const line of inputs) {
     if (line.productId === parentProductId) {
@@ -111,7 +118,14 @@ export function executeDisassembly(parentProductId: Id, qtyToBreak: number): Ass
     return { ok: false, error: "Define disassembly outputs on the product BOM before breaking stock down." };
   }
 
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch();
+  if (!branch) {
+    return {
+      ok: false,
+      error:
+        "No trading shop — disassembly moves stock at a store or warehouse. Add a trading branch under Inventory → Overview.",
+    };
+  }
   const parentOnHand = InventoryRepo.getStock(branch.id, parentProductId)?.onHandQty ?? 0;
   if (parentOnHand + 1e-9 < qtyToBreak) {
     return { ok: false, error: `Insufficient ${parent.sku} on hand: need ${qtyToBreak}, have ${parentOnHand}.` };

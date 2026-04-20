@@ -26,7 +26,7 @@ export function EditProductPage({ productId }: Props) {
   const refreshStock = useCallback(() => {
     const p = InventoryRepo.getProduct(productId);
     if (!p) return;
-    const branch = InventoryRepo.getDefaultBranch();
+    const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
     setStockQty(
       p.sku.trim()
         ? getOnHandSumForSkuAtBranch(branch.id, p.sku)

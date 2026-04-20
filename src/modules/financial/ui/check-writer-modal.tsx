@@ -11,6 +11,8 @@ import {
 } from "@/modules/financial/services/check-writer-posting";
 import { COA_AP_CODE, COA_BANK_CODE, COA_CASH_CODE } from "@/modules/financial/services/general-journal-ledger";
 import { listOutstandingCreditors } from "@/modules/financial/services/creditors-ledger";
+import { finLight } from "@/modules/financial/ui/financial-light-fields";
+import { WindowControls } from "@/components/ui/window-controls";
 
 function money(n: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -49,10 +51,12 @@ export function CheckWriterModal({
   const [lineMemo, setLineMemo] = useState("");
 
   const [err, setErr] = useState<string | null>(null);
+  const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setErr(null);
+    setMinimized(false);
     if (creditors.length && !supplierId) {
       setSupplierId(creditors[0]!.supplierId);
       setPayee(creditors[0]!.supplierName);
@@ -141,47 +145,35 @@ export function CheckWriterModal({
       : `${customExpenseCode.trim() || expenseCode} ${customExpenseName.trim() || expenseName}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" role="dialog">
-      <div
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/15 shadow-2xl"
-        style={{
-          background:
-            "linear-gradient(165deg, rgba(28,28,32,0.98) 0%, rgba(18,18,22,1) 40%, rgba(12,12,16,1) 100%)",
-        }}
-      >
-        <div className="border-b border-white/10 px-6 py-5">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${finLight.backdrop}`} role="dialog">
+      <div className={finLight.shell}>
+        <div className="border-b border-slate-200 px-6 py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-orange">Payment voucher</p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Check writer</h2>
-              <p className="mt-1 max-w-xl text-sm text-neutral-400">
+              <h2 className={finLight.title}>Check writer</h2>
+              <p className={finLight.subtitle}>
                 Funds leave the selected cash or bank account and are applied to the GL line below. Debits must equal
                 credits — one payment amount drives both sides.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-white/20 px-3 py-1.5 text-sm text-neutral-300 hover:border-white/40 hover:text-white"
-            >
-              Close
-            </button>
+            <WindowControls
+              minimized={minimized}
+              onMinimize={() => setMinimized(true)}
+              onRestore={() => setMinimized(false)}
+              onClose={onClose}
+            />
           </div>
         </div>
 
-        <div className="space-y-6 px-6 py-6">
-          {/* Instrument face */}
-          <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-white/20 bg-gradient-to-br from-white/[0.06] to-transparent px-5 py-6">
-            <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-orange/10 blur-2xl" />
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Pay from</p>
+        {minimized ? null : <div className="space-y-6 px-6 py-6">
+          <div className={finLight.instrument}>
+            <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-orange/15 blur-2xl" />
+            <p className={finLight.label}>Pay from</p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm">
-                <span className="text-neutral-400">Cash / bank account</span>
-                <select
-                  className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 text-sm font-medium"
-                  value={fund}
-                  onChange={(e) => setFund(e.target.value as "bank" | "cash")}
-                >
+              <label className="block text-sm text-slate-700">
+                <span className={finLight.label}>Cash / bank account</span>
+                <select className={finLight.field} value={fund} onChange={(e) => setFund(e.target.value as "bank" | "cash")}>
                   <option value="bank">
                     Bank operating ({COA_BANK_CODE}) — {money(bankBal)} available
                   </option>
@@ -190,49 +182,44 @@ export function CheckWriterModal({
                   </option>
                 </select>
               </label>
-              <label className="block text-sm">
-                <span className="text-neutral-400">Payment date</span>
-                <input
-                  type="date"
-                  className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 text-sm"
-                  value={checkDate}
-                  onChange={(e) => setCheckDate(e.target.value)}
-                />
+              <label className="block text-sm text-slate-700">
+                <span className={finLight.label}>Payment date</span>
+                <input type="date" className={finLight.field} value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
               </label>
-              <label className="block text-sm">
-                <span className="text-neutral-400">Check / reference #</span>
+              <label className="block text-sm text-slate-700">
+                <span className={finLight.label}>Check / reference #</span>
                 <input
-                  className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 font-mono text-sm"
+                  className={`${finLight.field} ${finLight.fieldMono}`}
                   value={checkNumber}
                   onChange={(e) => setCheckNumber(e.target.value)}
                   placeholder="e.g. 1042"
                 />
               </label>
-              <label className="block text-sm">
-                <span className="text-neutral-400">Payee name</span>
+              <label className="block text-sm text-slate-700">
+                <span className={finLight.label}>Payee name</span>
                 <input
-                  className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 text-sm"
+                  className={finLight.field}
                   value={payee}
                   onChange={(e) => setPayee(e.target.value)}
                   placeholder="As printed on the instrument"
                 />
               </label>
-              <label className="block text-sm">
-                <span className="text-neutral-400">Amount paid</span>
+              <label className="block text-sm text-slate-700">
+                <span className={finLight.label}>Amount paid</span>
                 <input
                   type="number"
                   min={0}
                   step="any"
-                  className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 font-mono text-lg font-semibold text-white"
+                  className={`${finLight.field} text-lg font-semibold ${finLight.fieldMono}`}
                   value={amountStr}
                   onChange={(e) => setAmountStr(e.target.value)}
                   placeholder="0.00"
                 />
               </label>
-              <label className="block text-sm">
-                <span className="text-neutral-400">Cost center</span>
+              <label className="block text-sm text-slate-700">
+                <span className={finLight.label}>Cost center</span>
                 <select
-                  className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 text-sm"
+                  className={finLight.field}
                   value={costCenter}
                   onChange={(e) => setCostCenter(e.target.value as "shop" | "admin")}
                 >
@@ -243,21 +230,20 @@ export function CheckWriterModal({
             </div>
           </div>
 
-          {/* GL application */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div className={finLight.glPanel}>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Double entry</p>
-                <p className="text-sm font-medium text-white">Apply to chart of accounts</p>
+                <p className={finLight.label}>Double entry</p>
+                <p className="text-sm font-medium text-slate-900">Apply to chart of accounts</p>
               </div>
-              <div className="flex rounded-lg border border-white/10 p-0.5">
+              <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
                 <button
                   type="button"
                   onClick={() => setMode("creditor")}
                   className={
                     mode === "creditor"
                       ? "rounded-md bg-brand-orange px-3 py-1.5 text-xs font-semibold text-white"
-                      : "rounded-md px-3 py-1.5 text-xs font-medium text-neutral-400 hover:text-white"
+                      : "rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
                   }
                 >
                   Creditor (AP)
@@ -268,7 +254,7 @@ export function CheckWriterModal({
                   className={
                     mode === "expense"
                       ? "rounded-md bg-brand-orange px-3 py-1.5 text-xs font-semibold text-white"
-                      : "rounded-md px-3 py-1.5 text-xs font-medium text-neutral-400 hover:text-white"
+                      : "rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
                   }
                 >
                   Expense / GL
@@ -279,10 +265,10 @@ export function CheckWriterModal({
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               {mode === "creditor" ? (
                 <>
-                  <label className="block text-sm lg:col-span-2">
-                    <span className="text-neutral-400">Accounts payable · creditor</span>
+                  <label className="block text-sm text-slate-700 lg:col-span-2">
+                    <span className={finLight.label}>Accounts payable · creditor</span>
                     <select
-                      className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 text-sm"
+                      className={finLight.field}
                       value={supplierId}
                       onChange={(e) => {
                         setSupplierId(e.target.value);
@@ -304,13 +290,9 @@ export function CheckWriterModal({
                 </>
               ) : (
                 <>
-                  <label className="block text-sm lg:col-span-2">
-                    <span className="text-neutral-400">Expense account</span>
-                    <select
-                      className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 text-sm"
-                      value={expensePreset}
-                      onChange={(e) => setExpensePreset(Number(e.target.value))}
-                    >
+                  <label className="block text-sm text-slate-700 lg:col-span-2">
+                    <span className={finLight.label}>Expense account</span>
+                    <select className={finLight.field} value={expensePreset} onChange={(e) => setExpensePreset(Number(e.target.value))}>
                       {CHECK_WRITER_EXPENSE_PRESETS.map((p, i) => (
                         <option key={p.code} value={i}>
                           {p.code} — {p.name}
@@ -318,19 +300,19 @@ export function CheckWriterModal({
                       ))}
                     </select>
                   </label>
-                  <label className="block text-sm">
-                    <span className="text-neutral-400">Custom code</span>
+                  <label className="block text-sm text-slate-700">
+                    <span className={finLight.label}>Custom code</span>
                     <input
-                      className="vendor-field mt-1 w-full rounded-lg px-3 py-2 font-mono text-xs"
+                      className={`${finLight.field} text-xs ${finLight.fieldMono}`}
                       value={customExpenseCode}
                       onChange={(e) => setCustomExpenseCode(e.target.value)}
                       placeholder="Override code"
                     />
                   </label>
-                  <label className="block text-sm">
-                    <span className="text-neutral-400">Custom name</span>
+                  <label className="block text-sm text-slate-700">
+                    <span className={finLight.label}>Custom name</span>
                     <input
-                      className="vendor-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
+                      className={finLight.field}
                       value={customExpenseName}
                       onChange={(e) => setCustomExpenseName(e.target.value)}
                       placeholder="Override label"
@@ -339,64 +321,55 @@ export function CheckWriterModal({
                 </>
               )}
 
-              <label className="block text-sm lg:col-span-2">
-                <span className="text-neutral-400">Line memo</span>
+              <label className="block text-sm text-slate-700 lg:col-span-2">
+                <span className={finLight.label}>Line memo</span>
                 <input
-                  className="vendor-field mt-1 w-full rounded-lg px-3 py-2.5 text-sm"
+                  className={finLight.field}
                   value={lineMemo}
                   onChange={(e) => setLineMemo(e.target.value)}
                   placeholder="Narrative for the GL and bank statement"
                 />
               </label>
 
-              <p className="text-xs text-neutral-500 lg:col-span-2">
-                Cost center <span className="font-semibold text-neutral-300">{formatCostCenterLabel(costCenter)}</span>{" "}
-                applies to both the cash/bank credit and the debit line above.
+              <p className="text-xs text-slate-600 lg:col-span-2">
+                Cost center <span className="font-semibold text-slate-800">{formatCostCenterLabel(costCenter)}</span>{" "}
+                applies to both the cash/bank leg and the debit line above.
               </p>
             </div>
 
-            {/* Balance strip */}
-            <div className="mt-5 grid gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-3 text-sm">
+            <div className={finLight.balanceOk}>
               <div className="flex flex-wrap justify-between gap-2">
-                <span className="text-neutral-400">Debit · {coaDebitLabel}</span>
-                <span className="font-mono font-semibold text-emerald-200">{amountOk ? money(amountNum) : "—"}</span>
+                <span className="text-slate-600">Debit · {coaDebitLabel}</span>
+                <span className={`font-semibold ${finLight.fieldMono}`}>{amountOk ? money(amountNum) : "—"}</span>
               </div>
-              <div className="flex flex-wrap justify-between gap-2 border-t border-white/10 pt-2">
-                <span className="text-neutral-400">
+              <div className="flex flex-wrap justify-between gap-2 border-t border-emerald-200/80 pt-2">
+                <span className="text-slate-600">
                   Credit · {fund === "bank" ? `Bank (${COA_BANK_CODE})` : `Cash (${COA_CASH_CODE})`}
                 </span>
-                <span className="font-mono font-semibold text-emerald-200">{amountOk ? money(amountNum) : "—"}</span>
+                <span className={`font-semibold ${finLight.fieldMono}`}>{amountOk ? money(amountNum) : "—"}</span>
               </div>
-              <p className="pt-1 text-center text-[11px] font-medium text-emerald-300/90">
+              <p className="pt-1 text-center text-[11px] font-medium text-emerald-800">
                 {amountOk ? "Balanced — ready to post" : "Enter an amount to validate"}
               </p>
             </div>
           </div>
 
-          {err ? (
-            <div className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-              {err}
-            </div>
-          ) : null}
+          {err ? <div className={finLight.err}>{err}</div> : null}
 
-          <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-white/20 px-5 py-2.5 text-sm font-semibold text-white hover:border-white/40"
-            >
+          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+            <button type="button" onClick={onClose} className={finLight.btnGhost}>
               Cancel
             </button>
             <button
               type="button"
               disabled={!amountOk || (mode === "creditor" && creditors.length === 0)}
               onClick={() => submit()}
-              className="rounded-lg bg-brand-orange px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-orange/20 hover:bg-brand-orange-hover disabled:opacity-40"
+              className={finLight.btnPrimary}
             >
               Post check payment
             </button>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

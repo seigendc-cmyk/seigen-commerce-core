@@ -160,7 +160,7 @@ export function recordPurchaseCashFromCogsReserves(
 export function recordTransferInToCogsFromCash(amount: number, memo?: string): void {
   const a = roundMoney(amount);
   if (a <= 0) return;
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
   const db = getDb();
   db.entries.push({
     id: uid(),
@@ -179,7 +179,7 @@ export function recordTransferInToCogsFromCash(amount: number, memo?: string): v
 export function recordTransferInToCogsFromBank(amount: number, memo?: string): void {
   const a = roundMoney(amount);
   if (a <= 0) return;
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
   const db = getDb();
   db.entries.push({
     id: uid(),
@@ -198,7 +198,7 @@ export function recordTransferInToCogsFromBank(amount: number, memo?: string): v
 export function recordTransferOutFromCogsToCash(amount: number, memo?: string): void {
   const a = roundMoney(amount);
   if (a <= 0) return;
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
   const db = getDb();
   db.entries.push({
     id: uid(),
@@ -218,7 +218,7 @@ export function recordTransferOutFromCogsToCash(amount: number, memo?: string): 
 export function recordCreditorSettlementFromCogs(totalAmount: number, batchId: string, memo: string): void {
   const a = roundMoney(totalAmount);
   if (a <= 0) return;
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
   const db = getDb();
   db.entries.push({
     id: uid(),

@@ -104,7 +104,7 @@ export const PurchasingService = {
   }): PurchaseOrder {
     const db = getPurchasingDb();
     const ts = nowIso();
-    const branchId = input.branchId ?? InventoryRepo.getDefaultBranch().id;
+    const branchId = input.branchId ?? InventoryRepo.getDefaultTradingBranch()?.id ?? InventoryRepo.getDefaultBranch().id;
     const po: PurchaseOrder = {
       id: uid("po"),
       supplierId: input.supplierId,

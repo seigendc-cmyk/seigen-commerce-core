@@ -24,12 +24,19 @@ export type ProductBom = {
   disassemblyOutputs?: BomLine[];
 };
 
+/**
+ * `head_office` — Admin / HO: not counted as a billable shop, and does not ring sales or move stock from this profile.
+ * `trading` — retail / warehouse / counter that sells and holds inventory (default when omitted for legacy data).
+ */
+export type BranchKind = "trading" | "head_office";
+
 export type Branch = {
   id: Id;
   name: string;
   address?: string;
   isDefault?: boolean;
   createdAt: string;
+  kind?: BranchKind;
 };
 
 /** Named contact for purchasing / AP — multiple allowed per supplier. */

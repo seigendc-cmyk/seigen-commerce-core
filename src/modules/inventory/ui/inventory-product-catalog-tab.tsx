@@ -13,6 +13,7 @@ import {
 import { readCatalogColumnPrefs, writeCatalogColumnPrefs } from "../services/catalog-column-prefs";
 import { parseSearchTokens, productMatchesSearchTokens } from "../services/product-catalog-search";
 import type { ProductReadModel } from "../types/product-read-model";
+import { ProductHistoryModal } from "./product-history-modal";
 
 function money(n: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -69,6 +70,7 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
   const [search, setSearch] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<CatalogDataColumnId[]>(() => readCatalogColumnPrefs());
+  const [historyProduct, setHistoryProduct] = useState<ProductReadModel | null>(null);
 
   useEffect(() => {
     writeCatalogColumnPrefs(visibleColumns);
@@ -115,12 +117,16 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
 
   return (
     <section className="vendor-panel-soft rounded-2xl p-6">
+      {historyProduct ? (
+        <ProductHistoryModal product={historyProduct} onClose={() => setHistoryProduct(null)} />
+      ) : null}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-base font-semibold text-white">Item List</h2>
           <p className="mt-1 text-sm text-neutral-300">
-            All products as a table. Search matches every word in any order across SKU, name, sector, prices, stock,
-            external iDeliver flags, and other fields. Choose which columns to show and reorder them with the arrows.
+            All products as a table. <span className="text-neutral-200">Click a row</span> to open full product history
+            (sales, receiving, POs, stocktake). Search matches every word in any order across SKU, name, sector, prices,
+            stock, external iDeliver flags, and other fields.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -244,7 +250,20 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
             </thead>
             <tbody className="divide-y divide-white/10">
               {filtered.map((r) => (
-                <tr key={r.id} className="bg-white/[0.03] hover:bg-white/[0.06]">
+                <tr
+                  key={r.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open product history for ${r.name}`}
+                  onClick={() => setHistoryProduct(r)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setHistoryProduct(r);
+                    }
+                  }}
+                  className="cursor-pointer bg-white/[0.03] hover:bg-white/[0.08]"
+                >
                   {visibleColumns.map((col) => (
                     <td
                       key={col}
@@ -277,6 +296,7 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
                     <Link
                       href={`/dashboard/inventory/edit-product/${r.id}`}
                       className="font-semibold text-brand-orange hover:underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       Edit
                     </Link>

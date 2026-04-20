@@ -20,6 +20,14 @@ export const BrainEventTypes = {
   CASHPLAN_SCHEDULE_CHANGE_REQUESTED: "cashplan.schedule.change.requested",
   /** Schedule request approved or rejected (audit + notifications). */
   CASHPLAN_SCHEDULE_CHANGE_RESOLVED: "cashplan.schedule.change.resolved",
+  /** Vendor opened a CashPlan discipline reserve (rent, tax, salaries, etc.). */
+  CASHPLAN_RESERVE_CREATED: "cashplan.reserve.created",
+  /** Funding movement into a CashPlan reserve (earmark from free-cash view). */
+  CASHPLAN_RESERVE_FUNDED: "cashplan.reserve.funded",
+  /** Withdrawal, release, or metadata change queued for approval. */
+  CASHPLAN_RESERVE_APPROVAL_REQUESTED: "cashplan.reserve.approval.requested",
+  /** Reserve approval queue item approved or rejected. */
+  CASHPLAN_RESERVE_APPROVAL_RESOLVED: "cashplan.reserve.approval.resolved",
 } as const;
 
 export type BrainEventType = (typeof BrainEventTypes)[keyof typeof BrainEventTypes];

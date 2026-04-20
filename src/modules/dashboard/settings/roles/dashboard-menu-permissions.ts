@@ -22,6 +22,12 @@ export const DASHBOARD_MENU_PERMISSIONS = [
     description: "Registers, checkout, receipts",
   },
   {
+    id: "poolwise",
+    label: "PoolWise",
+    href: "/dashboard/poolwise",
+    description: "Collaborative pools, market space, contributions, allocation",
+  },
+  {
     id: "bi-rules",
     label: "BI rules",
     href: "/dashboard/bi/rules",

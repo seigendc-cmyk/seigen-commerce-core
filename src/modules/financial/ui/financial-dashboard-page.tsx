@@ -14,10 +14,13 @@ import {
   type CogsReservesEntry,
 } from "@/modules/financial/services/cogs-reserves-ledger";
 import { balanceBySupplierId, creditorsLedgerStorageKey, listCreditorEntries } from "@/modules/financial/services/creditors-ledger";
+import { CASHPLAN_RESERVES_UPDATED } from "@/modules/cash-plan/services/cash-plan-reserves";
 import { FINANCIAL_LEDGERS_UPDATED_EVENT } from "@/modules/financial/services/financial-events";
 import { generalJournalStorageKey } from "@/modules/financial/services/general-journal-ledger";
 import { stockAdjustmentLedgerStorageKey } from "@/modules/financial/services/stock-adjustment-ledger";
+import { biRulesLocalStorageKey } from "@/modules/bi/services/bi-rules-local";
 import { CashBookTab } from "@/modules/financial/ui/cash-book-tab";
+import { FinancialOverviewTab } from "@/modules/financial/ui/financial-overview-tab";
 import { StockAdjustmentsTab } from "@/modules/financial/ui/stock-adjustments-tab";
 import { InventoryRepo } from "@/modules/inventory/services/inventory-repo";
 import {
@@ -246,15 +249,20 @@ export function FinancialDashboardPage() {
         bankAccountLedgerStorageKey(),
         generalJournalStorageKey(),
         stockAdjustmentLedgerStorageKey(),
+        biRulesLocalStorageKey(),
       ];
       if (e.key && keys.includes(e.key)) refreshLedger();
     };
     window.addEventListener(COGS_RESERVES_LEDGER_EVENT, onAny);
     window.addEventListener(FINANCIAL_LEDGERS_UPDATED_EVENT, onAny);
+    window.addEventListener(CASHPLAN_RESERVES_UPDATED, onAny);
+    window.addEventListener("seigen-bi-rules-updated", onAny);
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(COGS_RESERVES_LEDGER_EVENT, onAny);
       window.removeEventListener(FINANCIAL_LEDGERS_UPDATED_EVENT, onAny);
+      window.removeEventListener(CASHPLAN_RESERVES_UPDATED, onAny);
+      window.removeEventListener("seigen-bi-rules-updated", onAny);
       window.removeEventListener("storage", onStorage);
     };
   }, [refreshLedger]);
@@ -279,7 +287,7 @@ export function FinancialDashboardPage() {
     <>
       <DashboardTopBar
         title="Financial"
-        subtitle="COGS Reserves, creditors, cash/bank, stock adjustments, and journals — local-first."
+        subtitle="Overview is BI-driven; operational detail lives in Seed, Creditors, CashBook, and stock adjustments — local-first."
       />
       <div className="flex-1 space-y-6 px-4 py-6 sm:px-6">
         <div className="-mx-1 overflow-x-auto pb-1">
@@ -302,6 +310,9 @@ export function FinancialDashboardPage() {
           </div>
         </div>
 
+        {tab === "overview" ? (
+          <FinancialOverviewTab tick={ledgerTick} onSelectTab={selectTab} />
+        ) : null}
         {tab === "seed" ? <CogsReservesCard entries={cogsEntries} /> : null}
         {tab === "creditors" ? <CreditorsTab tick={ledgerTick} /> : null}
         {tab === "cashbook" ? <CashBookTab tick={ledgerTick} onRefresh={refreshLedger} /> : null}

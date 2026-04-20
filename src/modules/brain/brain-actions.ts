@@ -319,6 +319,266 @@ export async function emitCashPlanScheduleChangeResolvedBrainEvent(input: {
   return { ok: true, id: data.id as string };
 }
 
+export async function emitCashPlanReserveCreatedBrainEvent(input: {
+  reserveId: string;
+  name: string;
+  purpose: string;
+  targetAmount: number | null;
+  dueDate: string | null;
+  priority: string;
+  branchId: string;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    reserveId: input.reserveId,
+    name: input.name,
+    purpose: input.purpose,
+    targetAmount: input.targetAmount,
+    dueDate: input.dueDate,
+    priority: input.priority,
+    branchId: input.branchId,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CASHPLAN_RESERVE_CREATED,
+      module: "cashplan",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "cashplan_reserve",
+      entity_id: input.reserveId,
+      occurred_at: new Date().toISOString(),
+      severity: "notice" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitCashPlanReserveFundedBrainEvent(input: {
+  reserveId: string;
+  reserveName: string;
+  amount: number;
+  branchId: string;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    reserveId: input.reserveId,
+    reserveName: input.reserveName,
+    amount: input.amount,
+    branchId: input.branchId,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CASHPLAN_RESERVE_FUNDED,
+      module: "cashplan",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "cashplan_reserve",
+      entity_id: input.reserveId,
+      occurred_at: new Date().toISOString(),
+      severity: "info" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitCashPlanReserveApprovalRequestedBrainEvent(input: {
+  requestId: string;
+  approvalKind: string;
+  reserveId: string;
+  reserveName: string;
+  branchId: string;
+  amount?: number;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    requestId: input.requestId,
+    approvalKind: input.approvalKind,
+    reserveId: input.reserveId,
+    reserveName: input.reserveName,
+    amount: input.amount,
+    branchId: input.branchId,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CASHPLAN_RESERVE_APPROVAL_REQUESTED,
+      module: "cashplan",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "cashplan_reserve_approval",
+      entity_id: input.requestId,
+      occurred_at: new Date().toISOString(),
+      severity: "warning" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitCashPlanReserveApprovalResolvedBrainEvent(input: {
+  requestId: string;
+  approvalKind: string;
+  reserveId: string;
+  reserveName: string;
+  resolution: "approved" | "rejected";
+  branchId: string;
+  correlationId: string;
+  amount?: number;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    requestId: input.requestId,
+    approvalKind: input.approvalKind,
+    reserveId: input.reserveId,
+    reserveName: input.reserveName,
+    resolution: input.resolution,
+    amount: input.amount,
+    branchId: input.branchId,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CASHPLAN_RESERVE_APPROVAL_RESOLVED,
+      module: "cashplan",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "cashplan_reserve_approval",
+      entity_id: input.requestId,
+      occurred_at: new Date().toISOString(),
+      severity: (input.resolution === "approved" ? "notice" : "info") as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
 export async function listBrainEvents(filters: ListBrainEventsInput = {}): Promise<ListBrainEventsResult> {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "Supabase is not configured." };

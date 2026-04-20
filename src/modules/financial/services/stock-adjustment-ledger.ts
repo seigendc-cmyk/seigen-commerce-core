@@ -1,5 +1,6 @@
 import { browserLocalJson } from "@/modules/inventory/services/storage";
 import { dispatchFinancialLedgersUpdated } from "./financial-events";
+import { postAgentDebtorForShortage } from "@/modules/consignment/services/consignment-operations";
 
 const NS = { namespace: "seigen.financial", version: 1 as const };
 
@@ -111,6 +112,17 @@ export function appendStockAdjustmentEntries(
   const db = getDb();
   const ts = new Date().toISOString();
   for (const r of rows) {
+    // Consignment shortage responsibility: negative variance at stall is agent liability at invoice value.
+    if (r.qtyVariance < -1e-9) {
+      const ref = r.reference?.trim() ? r.reference.trim() : r.stocktakeId.slice(-12);
+      postAgentDebtorForShortage({
+        stallBranchId: r.branchId,
+        productId: r.productId,
+        qtyShort: Math.abs(r.qtyVariance),
+        reference: ref,
+        createdAt: ts,
+      });
+    }
     db.entries.push({
       id: uid(),
       createdAt: ts,

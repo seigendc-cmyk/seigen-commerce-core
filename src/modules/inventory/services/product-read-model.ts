@@ -3,6 +3,7 @@ import type { InventoryItemType } from "../types/inventory-product-meta";
 import type { Id, Product } from "../types/models";
 import type { ProductReadModel } from "../types/product-read-model";
 import { InventoryRepo } from "./inventory-repo";
+import { consignmentAgentPricingForProduct } from "@/modules/consignment/services/consignment-operations";
 
 function sectorLabel(sectorId: string): string {
   return getSectorConfig(sectorId)?.label ?? sectorId;
@@ -96,6 +97,8 @@ function toRead(p: Product, branchId: Id, onHandQty?: number): ProductReadModel 
   const sectorSearch = flattenSectorDataForSearch(p.sectorData as Record<string, unknown>);
   const inv = (p.inventoryType ?? "inventory") as InventoryItemType;
   const scan = p.upc ?? p.barcode;
+  const consignmentPrice = consignmentAgentPricingForProduct(branchId, p.id);
+  const sellingPrice = consignmentPrice != null ? consignmentPrice : p.sellingPrice;
   return {
     id: p.id,
     name: p.name,
@@ -108,7 +111,7 @@ function toRead(p: Product, branchId: Id, onHandQty?: number): ProductReadModel 
     locSite: p.locSite,
     costPrice: p.costPrice,
     averageCost: typeof p.averageCost === "number" && Number.isFinite(p.averageCost) ? p.averageCost : p.costPrice,
-    sellingPrice: p.sellingPrice,
+    sellingPrice,
     onHandQty: onHandQty ?? getOnHandForProduct(branchId, p.id),
     branchId,
     active: p.active,
@@ -135,8 +138,12 @@ function skuDedupeKey(sku: string): string {
   return sku.trim().toLowerCase();
 }
 
+function defaultCatalogBranch() {
+  return InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
+}
+
 export function getProductReadModel(productId: Id, branchId?: Id): ProductReadModel | undefined {
-  const branch = branchId ? InventoryRepo.getBranch(branchId) : InventoryRepo.getDefaultBranch();
+  const branch = branchId ? InventoryRepo.getBranch(branchId) : defaultCatalogBranch();
   if (!branch) return undefined;
   const p = InventoryRepo.getProduct(productId);
   if (!p) return undefined;
@@ -149,7 +156,7 @@ export function getProductReadModel(productId: Id, branchId?: Id): ProductReadMo
  * most recently updated product, and on-hand is summed across all matching IDs for that branch.
  */
 export function listProductReadModels(branchId?: Id): ProductReadModel[] {
-  const branch = branchId ? InventoryRepo.getBranch(branchId) : InventoryRepo.getDefaultBranch();
+  const branch = branchId ? InventoryRepo.getBranch(branchId) : defaultCatalogBranch();
   if (!branch) return [];
   const products = InventoryRepo.listProducts();
   const groups = new Map<string, Product[]>();

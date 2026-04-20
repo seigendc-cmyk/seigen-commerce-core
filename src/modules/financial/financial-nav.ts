@@ -1,8 +1,8 @@
-export const FINANCIAL_DEFAULT_TAB = "seed" as const;
+export const FINANCIAL_DEFAULT_TAB = "overview" as const;
 
-export type FinancialTabId = "seed" | "creditors" | "cashbook" | "stock-adjustments";
+export type FinancialTabId = "overview" | "seed" | "creditors" | "cashbook" | "stock-adjustments";
 
-const TAB_SET = new Set<string>(["seed", "creditors", "cashbook", "stock-adjustments"]);
+const TAB_SET = new Set<string>(["overview", "seed", "creditors", "cashbook", "stock-adjustments"]);
 
 export function normalizeFinancialTab(raw: string | null): FinancialTabId {
   if (raw && TAB_SET.has(raw)) return raw as FinancialTabId;
@@ -10,6 +10,11 @@ export function normalizeFinancialTab(raw: string | null): FinancialTabId {
 }
 
 export const FINANCIAL_TABS: { id: FinancialTabId; label: string; hint: string }[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    hint: "BI-driven financial health and rollups",
+  },
   {
     id: "seed",
     label: "Seed Account",

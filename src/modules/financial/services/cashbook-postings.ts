@@ -6,6 +6,7 @@ import {
   COA_MISC_INCOME_CODE,
   type JournalLine,
 } from "./general-journal-ledger";
+import { formatCostCenterLabel } from "./check-writer-posting";
 
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
@@ -47,16 +48,44 @@ export function postCreditorCheckPayment(input: {
   });
 }
 
+export function buildReceiptMemo(input: {
+  documentNumber: string;
+  receiptDate: string;
+  payerName: string;
+  costCenter: "shop" | "admin";
+  lineMemo: string;
+}): string {
+  const num = input.documentNumber.trim() || "—";
+  const d = input.receiptDate.trim().slice(0, 10) || "—";
+  const from = input.payerName.trim() || "—";
+  const cc = formatCostCenterLabel(input.costCenter);
+  const tail = input.lineMemo.trim();
+  return `RCP #${num} · ${d} · ${cc} · From: ${from}${tail ? ` · ${tail}` : ""}`;
+}
+
 /** Receive external funds into cash or bank with a credit to equity, revenue, or other GL account. */
 export function postCashBankReceipt(input: {
   target: "cash" | "bank";
   amount: number;
-  memo: string;
+  receiptDate: string;
+  documentNumber: string;
+  payerName: string;
+  costCenter: "shop" | "admin";
+  /** Offset (credit) line narrative — also folded into the batch memo. */
+  lineMemo: string;
   offsetAccountCode: string;
   offsetAccountName: string;
-}): { ok: true } | { ok: false; error: string } {
+}): ReturnType<typeof appendBalancedJournalWithLedgers> {
   const amt = roundMoney(input.amount);
   if (amt <= 0) return { ok: false, error: "Enter a positive amount." };
+
+  const mainMemo = buildReceiptMemo({
+    documentNumber: input.documentNumber,
+    receiptDate: input.receiptDate,
+    payerName: input.payerName,
+    costCenter: input.costCenter,
+    lineMemo: input.lineMemo,
+  });
 
   const assetLine: JournalLine =
     input.target === "cash"
@@ -73,10 +102,27 @@ export function postCashBankReceipt(input: {
     },
   ];
 
+  const doc = input.documentNumber.trim() || "—";
+  const biz = input.receiptDate.trim().slice(0, 10);
+  const payer = input.payerName.trim() || "—";
+  const meta = {
+    checkNumber: doc,
+    checkDate: biz,
+    payee: payer,
+    costCenter: input.costCenter,
+  };
+
   return appendBalancedJournalWithLedgers({
-    memo: input.memo.trim() || "Receipt",
+    memo: mainMemo,
     source: "receipt",
     lines,
+    documentNumber: doc !== "—" ? doc : undefined,
+    businessDate: biz || undefined,
+    preparedBy: payer !== "—" ? payer : undefined,
+    cashLedgerMemo: mainMemo,
+    bankLedgerMemo: mainMemo,
+    cashLedgerMeta: input.target === "cash" ? meta : undefined,
+    bankLedgerMeta: input.target === "bank" ? meta : undefined,
   });
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ACCOUNT_CLASS_OPTIONS,
   canAddSubaccount,
@@ -11,6 +11,7 @@ import {
   type AccountClass,
   type CoaAccountRow,
 } from "@/modules/dashboard/settings/coa/coa-types";
+import { listCoaRows, setCoaRows } from "@/modules/dashboard/settings/coa/coa-store";
 
 function sortRows(rows: CoaAccountRow[]): CoaAccountRow[] {
   return [...rows].sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
@@ -26,6 +27,10 @@ export function CoaSettingsForm() {
   const [listError, setListError] = useState<string | null>(null);
 
   const sorted = useMemo(() => sortRows(rows), [rows]);
+
+  useEffect(() => {
+    setRows(listCoaRows());
+  }, []);
 
   const updateRow = useCallback((id: string, patch: Partial<CoaAccountRow>) => {
     setListError(null);
@@ -66,8 +71,9 @@ export function CoaSettingsForm() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setCoaRows(rows);
     setSavedHint(
-      "Draft saved locally — journal validation, period close, and integrations with cashbooks and banks connect when your ledger service is wired.",
+      "COA saved locally — journals will pick account names from this table.",
     );
     window.setTimeout(() => setSavedHint(null), 4000);
   }

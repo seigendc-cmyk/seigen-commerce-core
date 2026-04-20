@@ -8,7 +8,7 @@ import { cogsReservesLedgerStorageKey } from "@/modules/financial/services/cogs-
 import { FINANCIAL_LEDGERS_UPDATED_EVENT } from "@/modules/financial/services/financial-events";
 import { readTaxOnSalesSettings } from "@/modules/financial/services/tax-settings";
 import { landUnitCostFromReadModel } from "@/modules/financial/lib/cogs-cost";
-import { inventoryKeys } from "@/modules/inventory/services/inventory-repo";
+import { InventoryRepo, inventoryKeys } from "@/modules/inventory/services/inventory-repo";
 import { getProductReadModel, listProductReadModels } from "@/modules/inventory/services/product-read-model";
 import type { ProductReadModel } from "@/modules/inventory/types/product-read-model";
 import type { IdeliverExternalProvider } from "@/modules/dashboard/settings/ideliver/ideliver-types";
@@ -61,6 +61,7 @@ export function PosPage() {
   const [pinnedReceipt, setPinnedReceipt] = useState<Sale | null>(null);
   const [ideliverProviders, setIdeliverProviders] = useState<IdeliverExternalProvider[]>([]);
   const [finTick, setFinTick] = useState(0);
+  const [branchTick, setBranchTick] = useState(0);
 
   const refreshCatalog = useCallback(() => setCatalogVersion((v) => v + 1), []);
 
@@ -79,8 +80,17 @@ export function PosPage() {
   }, []);
 
   useEffect(() => {
+    const onBranches = () => setBranchTick((t) => t + 1);
+    window.addEventListener("seigen-inventory-branches-updated", onBranches);
+    return () => window.removeEventListener("seigen-inventory-branches-updated", onBranches);
+  }, []);
+
+  useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === inventoryKeys.db) refreshCatalog();
+      if (e.key === inventoryKeys.db) {
+        refreshCatalog();
+        setBranchTick((t) => t + 1);
+      }
       if (e.key === ideliverProvidersStorageKey) refreshIdeliver();
     };
     const onVis = () => {
@@ -99,8 +109,15 @@ export function PosPage() {
 
   const catalog = useMemo(() => {
     void catalogVersion;
+    void branchTick;
     return listProductReadModels();
-  }, [catalogVersion]);
+  }, [catalogVersion, branchTick]);
+
+  const hasTradingShop = useMemo(() => {
+    void branchTick;
+    void catalogVersion;
+    return Boolean(InventoryRepo.getDefaultTradingBranch());
+  }, [branchTick, catalogVersion]);
 
   const onHandByProductId = useMemo(() => {
     const m = new Map<string, number>();
@@ -197,6 +214,16 @@ export function PosPage() {
         subtitle={`${DEFAULT_REGISTER_LABEL} · dynamic cart · iDeliver fares · 80-col PDF receipt`}
       />
       <div className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(360px,1.1fr)_minmax(380px,0.9fr)_minmax(340px,0.8fr)] lg:gap-6">
+        {!hasTradingShop ? (
+          <div className="col-span-full rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <strong className="text-amber-50">No trading shop yet.</strong> Head office cannot ring sales or hold POS
+            stock. Add a trading branch under{" "}
+            <Link href="/dashboard/inventory" className="font-semibold text-brand-orange underline">
+              Inventory → Overview
+            </Link>
+            .
+          </div>
+        ) : null}
         <section className="vendor-panel flex min-h-[320px] flex-col rounded-2xl lg:max-w-none">
           <div className="border-b border-white/10 p-4">
             <label className="sr-only" htmlFor="pos-search">
@@ -554,7 +581,7 @@ export function PosPage() {
 
             <button
               type="button"
-              disabled={cart.items.length === 0 || hasInsufficientStock}
+              disabled={cart.items.length === 0 || hasInsufficientStock || !hasTradingShop}
               onClick={completeSale}
               className="w-full rounded-lg bg-brand-orange py-3 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:opacity-40"
             >

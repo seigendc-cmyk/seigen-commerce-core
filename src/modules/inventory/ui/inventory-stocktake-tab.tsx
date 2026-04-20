@@ -19,7 +19,7 @@ function money(n: number) {
 type CountMap = Record<string, string>;
 
 export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
-  const branch = useMemo(() => InventoryRepo.getDefaultBranch(), []);
+  const branch = useMemo(() => InventoryRepo.getDefaultTradingBranch(), []);
   const [search, setSearch] = useState("");
   const [memo, setMemo] = useState("");
   const [counts, setCounts] = useState<CountMap>({});
@@ -28,6 +28,7 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
   const [sessions, setSessions] = useState<StocktakeSession[]>(() => listStocktakeSessions(20));
 
   const rows = useMemo(() => {
+    if (!branch) return [];
     const all = listProductReadModels(branch.id);
     const q = search.trim().toLowerCase();
     if (!q) return all;
@@ -37,7 +38,7 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
         p.sku.toLowerCase().includes(q) ||
         (p.barcode?.toLowerCase().includes(q) ?? false),
     );
-  }, [branch.id, search]);
+  }, [branch, search]);
 
   const refreshSessions = useCallback(() => setSessions(listStocktakeSessions(20)), []);
 
@@ -72,6 +73,7 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
 
   function submit() {
     setMsg(null);
+    if (!branch) return;
     const payload: { productId: string; countedQty: number }[] = [];
     for (const row of preview.items) {
       payload.push({ productId: row.p.id, countedQty: row.counted! });
@@ -95,6 +97,18 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!branch) {
+    return (
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-8 text-center">
+        <p className="text-sm font-medium text-amber-100">No trading shop configured</p>
+        <p className="mt-2 text-sm text-amber-200/80">
+          Stocktake applies to stores and warehouses that hold inventory. Head office does not move stock — add a trading
+          branch under Inventory → Overview.
+        </p>
+      </div>
+    );
   }
 
   return (

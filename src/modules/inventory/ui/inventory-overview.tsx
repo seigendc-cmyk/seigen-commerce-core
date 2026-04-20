@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardTopBar } from "@/components/dashboard/dashboard-top-bar";
+import { posSalesStorageKey } from "@/modules/pos/services/sales-service";
 import { InventoryRepo, inventoryKeys } from "../services/inventory-repo";
 import { listProductReadModels } from "../services/product-read-model";
 import { PurchasingService, purchasingKeys } from "../services/purchasing-service";
@@ -11,6 +12,7 @@ import { ReceivingService, receivingKeys } from "../services/receiving-service";
 import { listStocktakeSessions } from "../services/stocktake-service";
 import type { ProductReadModel } from "../types/product-read-model";
 import { INVENTORY_TAB_QUERY_ITEM_LIST, INVENTORY_TAB_QUERY_STOCKTAKE } from "../inventory-nav";
+import { InventoryBranchesPanel } from "./inventory-branches-panel";
 import { InventoryProductCatalogTab } from "./inventory-product-catalog-tab";
 import { InventoryStocktakeTab } from "./inventory-stocktake-tab";
 
@@ -23,7 +25,7 @@ type Snapshot = {
 };
 
 function readSnapshot(): Snapshot {
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
   const pos = PurchasingService.listPurchaseOrders();
   const outstandingPoCount = pos.filter(
     (po) =>
@@ -82,17 +84,22 @@ export function InventoryOverview() {
       if (
         e.key === inventoryKeys.db ||
         e.key === purchasingKeys.purchasing ||
-        e.key === receivingKeys.receiving
+        e.key === receivingKeys.receiving ||
+        e.key === posSalesStorageKey
       ) {
         refreshSnapshot();
       }
     };
-    const onStocktake = () => refreshSnapshot();
+    const onLocalActivity = () => refreshSnapshot();
     window.addEventListener("storage", onStorage);
-    window.addEventListener("seigen-stocktake-posted", onStocktake);
+    window.addEventListener("seigen-stocktake-posted", onLocalActivity);
+    window.addEventListener("seigen-pos-sale-recorded", onLocalActivity);
+    window.addEventListener("seigen-inventory-branches-updated", onLocalActivity);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("seigen-stocktake-posted", onStocktake);
+      window.removeEventListener("seigen-stocktake-posted", onLocalActivity);
+      window.removeEventListener("seigen-pos-sale-recorded", onLocalActivity);
+      window.removeEventListener("seigen-inventory-branches-updated", onLocalActivity);
     };
   }, [refreshSnapshot]);
 
@@ -102,7 +109,7 @@ export function InventoryOverview() {
     <>
       <DashboardTopBar
         title="Inventory"
-        subtitle="Catalog, pricing, and stock for the default branch — POS reads this shape locally."
+        subtitle="Trading shops hold stock and ring sales; Head office is admin-only and is not a billable shop."
       />
       <div className="flex-1 space-y-8 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap gap-2 border-b border-neutral-900/15 pb-4">
@@ -136,6 +143,8 @@ export function InventoryOverview() {
 
         {tab === "overview" ? (
           <>
+        <InventoryBranchesPanel />
+
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {[
             {

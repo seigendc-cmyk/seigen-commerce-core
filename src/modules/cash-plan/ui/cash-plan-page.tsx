@@ -10,6 +10,20 @@ import {
 } from "@/modules/brain/brain-actions";
 import { FINANCIAL_LEDGERS_UPDATED_EVENT } from "@/modules/financial/services/financial-events";
 import { CashPlanScheduleApprovalsPanel } from "@/modules/cash-plan/ui/cash-plan-schedule-approvals";
+import { CashPlanLiquidityDiscipline } from "@/modules/cash-plan/ui/cash-plan-liquidity-discipline";
+import { CashPlanReserveApprovalsPanel } from "@/modules/cash-plan/ui/cash-plan-reserve-approvals";
+import { CashPlanReservesPanel } from "@/modules/cash-plan/ui/cash-plan-reserves-panel";
+import {
+  CashPlanCreditorsAgeingTab,
+  CashPlanDebtorsAgeingTab,
+} from "@/modules/cash-plan/ui/cash-plan-ageing-views";
+import { CashPlanFundsFlowTab } from "@/modules/cash-plan/ui/cash-plan-funds-flow-tab";
+import { CashPlanCashUtilizationTab } from "@/modules/cash-plan/ui/cash-plan-cash-utilization-tab";
+import { WindowControls } from "@/components/ui/window-controls";
+import {
+  CASHPLAN_RESERVES_UPDATED,
+  RESERVE_APPROVAL_QUEUE_UPDATED,
+} from "@/modules/cash-plan/services/cash-plan-reserves";
 import { getCashPlanSnapshot } from "@/modules/cash-plan/services/cash-plan-snapshot";
 import { runCashPlanDueReminderOnce } from "@/modules/cash-plan/services/cashplan-reminder-runner";
 import { isCreditorPaymentMissed, isDebtorCollectionMissed } from "@/modules/financial/services/cashplan-schedule-missed";
@@ -43,7 +57,6 @@ import {
   getScheduledNextDueDate,
   setScheduledNextDueDate,
 } from "@/modules/financial/services/creditor-schedule";
-import { totalCogsReservesBalance } from "@/modules/financial/services/cogs-reserves-ledger";
 import {
   listCreditorEntries,
   listCreditorEntriesForSupplier,
@@ -337,6 +350,10 @@ export function CashPlanPage() {
   const workspace = useWorkspace();
   const [ledgerTick, setLedgerTick] = useState(0);
   const [scheduleTick, setScheduleTick] = useState(0);
+  const [reserveTick, setReserveTick] = useState(0);
+
+  type CashPlanTab = "overview" | "creditors_ageing" | "debtors_ageing" | "funds_flow" | "cash_utilization";
+  const [cashPlanTab, setCashPlanTab] = useState<CashPlanTab>("overview");
 
   useEffect(() => {
     const fn = () => setLedgerTick((t) => t + 1);
@@ -356,7 +373,20 @@ export function CashPlanPage() {
     };
   }, []);
 
-  const dataVersion = `${ledgerTick}:${scheduleTick}`;
+  useEffect(() => {
+    const fn = () => setReserveTick((t) => t + 1);
+    window.addEventListener(CASHPLAN_RESERVES_UPDATED, fn);
+    window.addEventListener(RESERVE_APPROVAL_QUEUE_UPDATED, fn);
+    return () => {
+      window.removeEventListener(CASHPLAN_RESERVES_UPDATED, fn);
+      window.removeEventListener(RESERVE_APPROVAL_QUEUE_UPDATED, fn);
+    };
+  }, []);
+
+  const dataVersion = `${ledgerTick}:${scheduleTick}:${reserveTick}`;
+
+  const actorLabel =
+    workspace?.user?.email?.trim() || readDemoSession()?.email?.trim() || "User";
 
   useEffect(() => {
     const vendorEmail = workspace?.user?.email?.trim() || readDemoSession()?.email?.trim() || undefined;
@@ -413,6 +443,8 @@ export function CashPlanPage() {
   const [creditorModalOpen, setCreditorModalOpen] = useState(false);
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [payModalMinimized, setPayModalMinimized] = useState(false);
+  const [calendarModalMinimized, setCalendarModalMinimized] = useState(false);
 
   /** supplierId -> partial pay amount when selected */
   const [payAmounts, setPayAmounts] = useState<Record<string, number>>({});
@@ -423,9 +455,12 @@ export function CashPlanPage() {
     kind: "creditor" | "debtor";
   } | null>(null);
 
-  const cogsBalance = useMemo(() => totalCogsReservesBalance(), [dataVersion]);
-
   const [scheduleNotice, setScheduleNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!calendarModal) return;
+    setCalendarModalMinimized(false);
+  }, [calendarModal]);
 
   const submitCreditorDateChange = useCallback(
     (supplierId: string, supplierName: string, iso: string) => {
@@ -606,6 +641,35 @@ export function CashPlanPage() {
         title="CashPlan"
         subtitle="Supplier payables, debtor receivables, and laybye goods — one place to see who owes whom."
       />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="border-b border-white/10 px-4 pt-4 sm:px-6">
+          <nav className="flex flex-wrap gap-1.5" aria-label="CashPlan views">
+            {(
+              [
+                ["overview", "Overview"],
+                ["creditors_ageing", "Creditors ageing"],
+                ["debtors_ageing", "Debtors ageing"],
+                ["funds_flow", "Funds cash flow"],
+                ["cash_utilization", "Cash Utilization"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setCashPlanTab(id)}
+                className={`rounded-t-lg border border-b-0 px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                  cashPlanTab === id
+                    ? "border-white/20 bg-white/[0.08] text-white"
+                    : "border-transparent text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {cashPlanTab === "overview" ? (
       <div className="flex-1 space-y-6 px-4 py-6 sm:px-6">
         <p className="max-w-3xl text-sm leading-relaxed text-neutral-500">
           CashPlan rolls up operational cash exposure: what you still owe suppliers, what customers on terms owe you, and
@@ -619,7 +683,13 @@ export function CashPlanPage() {
           </div>
         ) : null}
 
+        <CashPlanLiquidityDiscipline snap={snap} />
+
         <CashPlanScheduleApprovalsPanel />
+
+        <CashPlanReserveApprovalsPanel />
+
+        <CashPlanReservesPanel actorLabel={actorLabel} dataVersion={dataVersion} />
 
         <div className="grid gap-4 lg:grid-cols-3">
           <button
@@ -747,6 +817,21 @@ export function CashPlanPage() {
         </section>
         </div>
       </div>
+        ) : null}
+
+        {cashPlanTab === "creditors_ageing" ? (
+          <CashPlanCreditorsAgeingTab dataVersion={dataVersion} />
+        ) : null}
+        {cashPlanTab === "debtors_ageing" ? (
+          <CashPlanDebtorsAgeingTab dataVersion={dataVersion} />
+        ) : null}
+        {cashPlanTab === "funds_flow" ? (
+          <CashPlanFundsFlowTab dataVersion={dataVersion} snap={snap} />
+        ) : null}
+        {cashPlanTab === "cash_utilization" ? (
+          <CashPlanCashUtilizationTab dataVersion={dataVersion} snap={snap} />
+        ) : null}
+      </div>
 
       {creditorModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 sm:p-6">
@@ -865,25 +950,39 @@ export function CashPlanPage() {
 
       {payModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white">Pay from COGS Reserves</h3>
-            <p className="mt-2 text-sm text-neutral-400">
-              Total allocation: <span className="font-mono text-white">{money(payTotal)}</span>
-            </p>
-            <p className="mt-1 text-sm text-neutral-400">
-              COGS Reserves balance: <span className="font-mono text-emerald-300">{money(cogsBalance)}</span>
-            </p>
-            {payTotal > cogsBalance + 1e-9 && (
+          <div className="w-full max-w-[min(96vw,56rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Pay from COGS Reserves</h3>
+                <p className="mt-1 text-sm text-slate-600">Allocate settlements to suppliers and post the COGS reserve payment.</p>
+              </div>
+              <WindowControls
+                minimized={payModalMinimized}
+                onMinimize={() => setPayModalMinimized(true)}
+                onRestore={() => setPayModalMinimized(false)}
+                onClose={() => setPayModalOpen(false)}
+              />
+            </div>
+            {payModalMinimized ? null : (
+              <div className="px-6 py-6">
+                <p className="text-sm text-slate-700">
+                  Total allocation: <span className="font-mono font-semibold text-slate-900">{money(payTotal)}</span>
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  COGS Reserves balance:{" "}
+                  <span className="font-mono font-semibold text-emerald-700">{money(snap.cogsReservesBalance)}</span>
+                </p>
+            {payTotal > snap.cogsReservesBalance + 1e-9 && (
               <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                 This allocation exceeds COGS Reserves. Fund the reserve under Financial → COGS / CashBook before paying.
               </p>
             )}
-            {payError && <p className="mt-3 text-sm text-rose-300">{payError}</p>}
-            <ul className="mt-4 max-h-40 overflow-y-auto text-sm text-neutral-300">
+            {payError && <p className="mt-3 text-sm text-rose-700">{payError}</p>}
+            <ul className="mt-4 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700">
               {buildAllocations().map((a) => (
-                <li key={a.supplierId} className="flex justify-between border-b border-white/[0.06] py-1">
-                  <span>{a.supplierName}</span>
-                  <span className="font-mono">{money(a.amount)}</span>
+                <li key={a.supplierId} className="flex justify-between border-b border-slate-200 px-3 py-2 last:border-0">
+                  <span className="text-slate-800">{a.supplierName}</span>
+                  <span className="font-mono font-semibold text-slate-900">{money(a.amount)}</span>
                 </li>
               ))}
             </ul>
@@ -891,43 +990,57 @@ export function CashPlanPage() {
               <button
                 type="button"
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
-                disabled={payTotal <= 0 || payTotal > cogsBalance + 1e-9}
+                disabled={payTotal <= 0 || payTotal > snap.cogsReservesBalance + 1e-9}
                 onClick={() => void confirmPay()}
               >
                 Confirm payment
               </button>
               <button
                 type="button"
-                className="rounded-xl border border-white/15 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 onClick={() => setPayModalOpen(false)}
               >
                 Back
               </button>
             </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {calendarModal?.kind === "creditor" && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-neutral-950 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white">Creditor payments — {calendarModal.dateKey}</h3>
-            <p className="mt-1 text-sm text-neutral-400">
+          <div className="max-h-[94vh] w-full max-w-[min(96vw,84rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Creditor payments — {calendarModal.dateKey}</h3>
+                <p className="mt-1 text-sm text-slate-600">
               Every open supplier balance is listed. If the obligation is <span className="text-neutral-200">missed</span>{" "}
               (overdue), your new date is submitted for approval and does not apply until approved. Otherwise it saves
               immediately.
-            </p>
+                </p>
+              </div>
+              <WindowControls
+                minimized={calendarModalMinimized}
+                onMinimize={() => setCalendarModalMinimized(true)}
+                onRestore={() => setCalendarModalMinimized(false)}
+                onClose={() => setCalendarModal(null)}
+              />
+            </div>
+            {calendarModalMinimized ? null : (
+              <div className="overflow-y-auto px-6 py-6">
             {creditorModalDueOnDay.length > 0 && (
-              <p className="mt-2 text-xs text-rose-200/90">
+              <p className="mt-2 text-xs text-rose-700">
                 {creditorModalDueOnDay.length} creditor(s) already due or scheduled on this date.
               </p>
             )}
             {outstanding.length === 0 ? (
-              <p className="mt-6 text-sm text-neutral-500">No outstanding supplier payables.</p>
+              <p className="mt-6 text-sm text-slate-600">No outstanding supplier payables.</p>
             ) : (
-              <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
+              <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50">
                 <table className="w-full min-w-[480px] text-left text-sm">
-                  <thead className="border-b border-white/10 bg-white/[0.04] text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  <thead className="border-b border-slate-200 bg-white text-xs font-semibold uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-3 py-2">Supplier</th>
                       <th className="px-3 py-2 text-right">Balance</th>
@@ -936,9 +1049,9 @@ export function CashPlanPage() {
                   </thead>
                   <tbody>
                     {outstanding.map((r) => (
-                      <tr key={r.supplierId} className="border-b border-white/[0.06] last:border-0">
-                        <td className="px-3 py-2 text-neutral-200">{r.supplierName}</td>
-                        <td className="px-3 py-2 text-right font-mono text-neutral-300">{money(r.balance)}</td>
+                      <tr key={r.supplierId} className="border-b border-slate-200 last:border-0">
+                        <td className="px-3 py-2 text-slate-900">{r.supplierName}</td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">{money(r.balance)}</td>
                         <td className="px-3 py-2">
                           <input
                             type="date"
@@ -947,7 +1060,7 @@ export function CashPlanPage() {
                               calendarModal.dateKey,
                               creditorEntries,
                             )}
-                            className="w-full min-w-[140px] rounded border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-white"
+                            className="w-full min-w-[140px] rounded border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900"
                             onChange={(e) => {
                               const v = e.target.value;
                               if (!v) return;
@@ -968,7 +1081,7 @@ export function CashPlanPage() {
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="button"
-                className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-40"
+                className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40"
                 disabled={outstanding.length === 0}
                 onClick={() => {
                   const iso = new Date(`${calendarModal.dateKey}T12:00:00`).toISOString();
@@ -1015,7 +1128,7 @@ export function CashPlanPage() {
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
-                className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-40"
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
                 disabled={outstanding.length === 0}
                 onClick={() => {
                   const key = calendarModal.dateKey;
@@ -1033,35 +1146,49 @@ export function CashPlanPage() {
               </button>
               <button
                 type="button"
-                className="rounded-xl border border-white/15 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 onClick={() => setCalendarModal(null)}
               >
                 Close
               </button>
             </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {calendarModal?.kind === "debtor" && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-neutral-950 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white">Debtor collections — {calendarModal.dateKey}</h3>
-            <p className="mt-1 text-sm text-neutral-400">
-              Every open receivable is listed. Missed collection dates follow the same approval rule as creditors: submit
-              for approval; Brain notifies staff; the calendar updates when approved.
-            </p>
+          <div className="max-h-[94vh] w-full max-w-[min(96vw,84rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Debtor collections — {calendarModal.dateKey}</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Every open receivable is listed. Missed collection dates follow the same approval rule as creditors:
+                  submit for approval; Brain notifies staff; the calendar updates when approved.
+                </p>
+              </div>
+              <WindowControls
+                minimized={calendarModalMinimized}
+                onMinimize={() => setCalendarModalMinimized(true)}
+                onRestore={() => setCalendarModalMinimized(false)}
+                onClose={() => setCalendarModal(null)}
+              />
+            </div>
+            {calendarModalMinimized ? null : (
+              <div className="overflow-y-auto px-6 py-6">
             {debtorModalDueOnDay.length > 0 && (
-              <p className="mt-2 text-xs text-sky-200/90">
+              <p className="mt-2 text-xs text-sky-700">
                 {debtorModalDueOnDay.length} debtor(s) currently scheduled or due on this date.
               </p>
             )}
             {outstandingDebtors.length === 0 ? (
-              <p className="mt-6 text-sm text-neutral-500">No outstanding debtor balances yet.</p>
+              <p className="mt-6 text-sm text-slate-600">No outstanding debtor balances yet.</p>
             ) : (
-              <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
+              <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50">
                 <table className="w-full min-w-[480px] text-left text-sm">
-                  <thead className="border-b border-white/10 bg-white/[0.04] text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  <thead className="border-b border-slate-200 bg-white text-xs font-semibold uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-3 py-2">Customer</th>
                       <th className="px-3 py-2 text-right">Balance</th>
@@ -1070,9 +1197,9 @@ export function CashPlanPage() {
                   </thead>
                   <tbody>
                     {outstandingDebtors.map((r) => (
-                      <tr key={r.customerId} className="border-b border-white/[0.06] last:border-0">
-                        <td className="px-3 py-2 text-neutral-200">{r.customerName}</td>
-                        <td className="px-3 py-2 text-right font-mono text-neutral-300">{money(r.balance)}</td>
+                      <tr key={r.customerId} className="border-b border-slate-200 last:border-0">
+                        <td className="px-3 py-2 text-slate-900">{r.customerName}</td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">{money(r.balance)}</td>
                         <td className="px-3 py-2">
                           <input
                             type="date"
@@ -1081,7 +1208,7 @@ export function CashPlanPage() {
                               calendarModal.dateKey,
                               debtorEntries,
                             )}
-                            className="w-full min-w-[140px] rounded border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-white"
+                            className="w-full min-w-[140px] rounded border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900"
                             onChange={(e) => {
                               const v = e.target.value;
                               if (!v) return;
@@ -1170,12 +1297,14 @@ export function CashPlanPage() {
               </button>
               <button
                 type="button"
-                className="rounded-xl border border-white/15 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 onClick={() => setCalendarModal(null)}
               >
                 Close
               </button>
             </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -3,26 +3,17 @@
 import { useCallback, useMemo, useState } from "react";
 import { bankAccountBalance, bankAccountLedgerStorageKey, listBankAccountEntries } from "@/modules/financial/services/bank-account-ledger";
 import { cashBookBalance, cashBookLedgerStorageKey, listCashBookEntries } from "@/modules/financial/services/cash-book-ledger";
-import { postCashBankReceipt, RECEIPT_OFFSET_PRESETS } from "@/modules/financial/services/cashbook-postings";
 import { CheckWriterModal } from "@/modules/financial/ui/check-writer-modal";
+import { JournalModal } from "@/modules/financial/ui/journal-modal";
+import { ReceiptModal } from "@/modules/financial/ui/receipt-modal";
 import {
-  appendBalancedJournalWithLedgers,
-  COA_BANK_CODE,
-  COA_CASH_CODE,
   generalJournalStorageKey,
   listJournalBatches,
-  type JournalLine,
 } from "@/modules/financial/services/general-journal-ledger";
 import { transferBankToCogsReserves, transferCashToCogsReserves, transferCogsReservesToCash } from "@/modules/financial/services/financial-transfers";
 
 function money(n: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
-}
-
-type JournalDraftLine = { accountCode: string; accountName: string; debit: string; credit: string };
-
-function emptyJournalLine(): JournalDraftLine {
-  return { accountCode: "", accountName: "", debit: "", credit: "" };
 }
 
 export function CashBookTab({
@@ -47,18 +38,8 @@ export function CashBookTab({
   const [xferMsg, setXferMsg] = useState<string | null>(null);
 
   const [checkOpen, setCheckOpen] = useState(false);
-
   const [receiptOpen, setReceiptOpen] = useState(false);
-  const [rcTarget, setRcTarget] = useState<"cash" | "bank">("cash");
-  const [rcAmt, setRcAmt] = useState("");
-  const [rcMemo, setRcMemo] = useState("");
-  const [rcPreset, setRcPreset] = useState(0);
-  const [rcErr, setRcErr] = useState<string | null>(null);
-
-  const [jrOpen, setJrOpen] = useState(false);
-  const [jrMemo, setJrMemo] = useState("");
-  const [jrLines, setJrLines] = useState<JournalDraftLine[]>([emptyJournalLine(), emptyJournalLine()]);
-  const [jrErr, setJrErr] = useState<string | null>(null);
+  const [journalOpen, setJournalOpen] = useState(false);
 
   const refresh = useCallback(() => {
     onRefresh();
@@ -86,20 +67,14 @@ export function CashBookTab({
         <button
           type="button"
           className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
-          onClick={() => {
-            setRcErr(null);
-            setReceiptOpen(true);
-          }}
+          onClick={() => setReceiptOpen(true)}
         >
           Receipt
         </button>
         <button
           type="button"
           className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
-          onClick={() => {
-            setJrErr(null);
-            setJrOpen(true);
-          }}
+          onClick={() => setJournalOpen(true)}
         >
           Journal
         </button>
@@ -318,6 +293,13 @@ export function CashBookTab({
                       <span className="uppercase">{b.source}</span>
                     </span>
                   </div>
+                  {b.documentNumber || b.businessDate || b.preparedBy ? (
+                    <p className="mt-1 text-[11px] text-neutral-500">
+                      {[b.documentNumber ? `Ref ${b.documentNumber}` : null, b.businessDate ? `Date ${b.businessDate}` : null, b.preparedBy ? `By ${b.preparedBy}` : null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : null}
                   <ul className="mt-2 space-y-1 font-mono text-neutral-400">
                     {b.lines.map((l, i) => (
                       <li key={`${b.id}-${i}`}>
@@ -332,226 +314,9 @@ export function CashBookTab({
         </div>
       </section>
 
-      <CheckWriterModal
-        open={checkOpen}
-        onClose={() => setCheckOpen(false)}
-        onPosted={refresh}
-        tick={tick}
-      />
-
-      {receiptOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog">
-          <div className="vendor-panel max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white">Receipt</h3>
-            <p className="mt-2 text-sm text-neutral-400">
-              Record cash or bank intake. Debits {COA_CASH_CODE}/{COA_BANK_CODE} and credits the offset account (e.g.
-              equity or revenue).
-            </p>
-            <div className="mt-4 space-y-3">
-              <label className="block text-xs font-semibold text-neutral-400">
-                Deposit to
-                <select
-                  className="vendor-field mt-1 w-full rounded-lg px-2 py-2 text-sm"
-                  value={rcTarget}
-                  onChange={(e) => setRcTarget(e.target.value as "cash" | "bank")}
-                >
-                  <option value="cash">Cash on hand ({COA_CASH_CODE})</option>
-                  <option value="bank">Bank ({COA_BANK_CODE})</option>
-                </select>
-              </label>
-              <label className="block text-xs font-semibold text-neutral-400">
-                Credit (offset)
-                <select
-                  className="vendor-field mt-1 w-full rounded-lg px-2 py-2 text-sm"
-                  value={rcPreset}
-                  onChange={(e) => setRcPreset(Number(e.target.value))}
-                >
-                  {RECEIPT_OFFSET_PRESETS.map((p, i) => (
-                    <option key={p.code} value={i}>
-                      {p.code} — {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs font-semibold text-neutral-400">
-                Amount
-                <input
-                  className="vendor-field mt-1 w-full rounded-lg px-2 py-2 text-sm"
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={rcAmt}
-                  onChange={(e) => setRcAmt(e.target.value)}
-                />
-              </label>
-              <label className="block text-xs font-semibold text-neutral-400">
-                Memo
-                <input
-                  className="vendor-field mt-1 w-full rounded-lg px-2 py-2 text-sm"
-                  value={rcMemo}
-                  onChange={(e) => setRcMemo(e.target.value)}
-                />
-              </label>
-            </div>
-            {rcErr ? <p className="mt-3 text-sm text-amber-300">{rcErr}</p> : null}
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-brand-orange"
-                onClick={() => setReceiptOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
-                onClick={() => {
-                  setRcErr(null);
-                  const preset = RECEIPT_OFFSET_PRESETS[rcPreset] ?? RECEIPT_OFFSET_PRESETS[0];
-                  const r = postCashBankReceipt({
-                    target: rcTarget,
-                    amount: Number(rcAmt),
-                    memo: rcMemo,
-                    offsetAccountCode: preset.code,
-                    offsetAccountName: preset.name,
-                  });
-                  if (!r.ok) {
-                    setRcErr(r.error);
-                    return;
-                  }
-                  setReceiptOpen(false);
-                  setRcAmt("");
-                  setRcMemo("");
-                  refresh();
-                }}
-              >
-                Post receipt
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {jrOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog">
-          <div className="vendor-panel max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white">General journal</h3>
-            <p className="mt-2 text-sm text-neutral-400">
-              Balanced entry: total debits must equal total credits. Use account codes{" "}
-              <span className="font-mono">{COA_CASH_CODE}</span> (cash) and <span className="font-mono">{COA_BANK_CODE}</span>{" "}
-              (bank) to move funds between physical cash and bank; other lines update the GL only (e.g. opening equity).
-            </p>
-            <label className="mt-4 block text-xs font-semibold text-neutral-400">
-              Batch memo
-              <input
-                className="vendor-field mt-1 w-full rounded-lg px-2 py-2 text-sm"
-                value={jrMemo}
-                onChange={(e) => setJrMemo(e.target.value)}
-                placeholder="e.g. Bank transfer, Opening balance"
-              />
-            </label>
-            <div className="mt-4 space-y-2">
-              <div className="grid grid-cols-[1fr_1fr_80px_80px] gap-2 text-[10px] font-semibold uppercase text-neutral-500">
-                <span>Code</span>
-                <span>Name</span>
-                <span className="text-right">Debit</span>
-                <span className="text-right">Credit</span>
-              </div>
-              {jrLines.map((line, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_1fr_80px_80px] gap-2">
-                  <input
-                    className="vendor-field rounded px-2 py-1.5 text-xs font-mono"
-                    placeholder="1010"
-                    value={line.accountCode}
-                    onChange={(e) => {
-                      const next = [...jrLines];
-                      next[idx] = { ...line, accountCode: e.target.value };
-                      setJrLines(next);
-                    }}
-                  />
-                  <input
-                    className="vendor-field rounded px-2 py-1.5 text-xs"
-                    placeholder="Account name"
-                    value={line.accountName}
-                    onChange={(e) => {
-                      const next = [...jrLines];
-                      next[idx] = { ...line, accountName: e.target.value };
-                      setJrLines(next);
-                    }}
-                  />
-                  <input
-                    className="vendor-field rounded px-2 py-1.5 text-right text-xs font-mono"
-                    placeholder="0"
-                    value={line.debit}
-                    onChange={(e) => {
-                      const next = [...jrLines];
-                      next[idx] = { ...line, debit: e.target.value };
-                      setJrLines(next);
-                    }}
-                  />
-                  <input
-                    className="vendor-field rounded px-2 py-1.5 text-right text-xs font-mono"
-                    placeholder="0"
-                    value={line.credit}
-                    onChange={(e) => {
-                      const next = [...jrLines];
-                      next[idx] = { ...line, credit: e.target.value };
-                      setJrLines(next);
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="mt-3 text-sm font-semibold text-brand-orange hover:underline"
-              onClick={() => setJrLines([...jrLines, emptyJournalLine()])}
-            >
-              + Add line
-            </button>
-            {jrErr ? <p className="mt-3 text-sm text-amber-300">{jrErr}</p> : null}
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-brand-orange"
-                onClick={() => setJrOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
-                onClick={() => {
-                  setJrErr(null);
-                  const lines: JournalLine[] = jrLines
-                    .map((l) => ({
-                      accountCode: l.accountCode.trim(),
-                      accountName: l.accountName.trim(),
-                      debit: Number(l.debit) || 0,
-                      credit: Number(l.credit) || 0,
-                    }))
-                    .filter((l) => l.accountCode.length > 0);
-                  const r = appendBalancedJournalWithLedgers({
-                    memo: jrMemo,
-                    source: "journal",
-                    lines,
-                  });
-                  if (!r.ok) {
-                    setJrErr(r.error);
-                    return;
-                  }
-                  setJrOpen(false);
-                  setJrMemo("");
-                  setJrLines([emptyJournalLine(), emptyJournalLine()]);
-                  refresh();
-                }}
-              >
-                Post journal
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <CheckWriterModal open={checkOpen} onClose={() => setCheckOpen(false)} onPosted={refresh} tick={tick} />
+      <ReceiptModal open={receiptOpen} onClose={() => setReceiptOpen(false)} onPosted={refresh} tick={tick} />
+      <JournalModal open={journalOpen} onClose={() => setJournalOpen(false)} onPosted={refresh} tick={tick} />
     </div>
   );
 }

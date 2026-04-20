@@ -35,6 +35,12 @@ export type JournalBatch = {
   memo: string;
   source: JournalSource;
   lines: JournalLine[];
+  /** Reference / voucher number shown on the instrument. */
+  documentNumber?: string;
+  /** Business date YYYY-MM-DD (may differ from createdAt). */
+  businessDate?: string;
+  /** Operator or counterparty name for journals / receipts. */
+  preparedBy?: string;
 };
 
 type Db = { batches: JournalBatch[] };
@@ -76,6 +82,9 @@ export function appendJournalBatchRecordOnly(input: {
   memo: string;
   source: JournalSource;
   lines: JournalLine[];
+  documentNumber?: string;
+  businessDate?: string;
+  preparedBy?: string;
 }): { ok: true; batch: JournalBatch } | { ok: false; error: string } {
   const lines = input.lines.map((l) => ({
     accountCode: l.accountCode.trim(),
@@ -92,6 +101,9 @@ export function appendJournalBatchRecordOnly(input: {
     source: input.source,
     lines,
   };
+  if (input.documentNumber?.trim()) batch.documentNumber = input.documentNumber.trim();
+  if (input.businessDate?.trim()) batch.businessDate = input.businessDate.trim().slice(0, 10);
+  if (input.preparedBy?.trim()) batch.preparedBy = input.preparedBy.trim();
   const db = getDb();
   db.batches.push(batch);
   setDb(db);
@@ -157,6 +169,14 @@ export function appendBalancedJournalWithLedgers(input: {
   bankCode?: string;
   cashEntryKind?: CashBookEntry["kind"];
   bankEntryKind?: BankAccountEntry["kind"];
+  documentNumber?: string;
+  businessDate?: string;
+  preparedBy?: string;
+  /** Overrides sub-ledger memo when posting cash line (defaults to batch memo + " · GL"). */
+  cashLedgerMemo?: string;
+  bankLedgerMemo?: string;
+  cashLedgerMeta?: Pick<CashBookEntry, "checkNumber" | "checkDate" | "payee" | "costCenter">;
+  bankLedgerMeta?: Pick<BankAccountEntry, "checkNumber" | "checkDate" | "payee" | "costCenter">;
 }): { ok: true; batch: JournalBatch } | { ok: false; error: string } {
   const cashCode = input.cashCode ?? COA_CASH_CODE;
   const bankCode = input.bankCode ?? COA_BANK_CODE;
@@ -179,6 +199,9 @@ export function appendBalancedJournalWithLedgers(input: {
     source: input.source,
     lines,
   };
+  if (input.documentNumber?.trim()) batch.documentNumber = input.documentNumber.trim();
+  if (input.businessDate?.trim()) batch.businessDate = input.businessDate.trim().slice(0, 10);
+  if (input.preparedBy?.trim()) batch.preparedBy = input.preparedBy.trim();
   const db = getDb();
   db.batches.push(batch);
   setDb(db);
@@ -186,18 +209,24 @@ export function appendBalancedJournalWithLedgers(input: {
   const cashKind = input.cashEntryKind ?? defaultLedgerKind(input.source);
   const bankKind = input.bankEntryKind ?? (defaultLedgerKind(input.source) as BankAccountEntry["kind"]);
 
+  const defaultSubMemo = `${input.memo.trim() || "Journal"} · GL`;
+
   if (cashNet !== 0) {
+    const m = input.cashLedgerMemo?.trim() || defaultSubMemo;
     appendCashBookEntry({
-      memo: `${input.memo.trim() || "Journal"} · GL`,
+      memo: m,
       amount: cashNet,
       kind: cashKind,
+      ...input.cashLedgerMeta,
     });
   }
   if (bankNet !== 0) {
+    const m = input.bankLedgerMemo?.trim() || defaultSubMemo;
     appendBankAccountEntry({
-      memo: `${input.memo.trim() || "Journal"} · GL`,
+      memo: m,
       amount: bankNet,
       kind: bankKind,
+      ...input.bankLedgerMeta,
     });
   }
   if (cashNet === 0 && bankNet === 0) {

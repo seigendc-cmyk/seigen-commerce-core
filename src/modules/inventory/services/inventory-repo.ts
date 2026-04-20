@@ -2,6 +2,7 @@ import type { InventoryItemType } from "../types/inventory-product-meta";
 import type {
   BomLine,
   Branch,
+  BranchKind,
   Id,
   Product,
   ProductBom,
@@ -112,6 +113,32 @@ export function normalizeSupplier(s: Supplier): Supplier {
 
 const DEFAULT_BRANCH_ID = "branch_default";
 
+/** Legacy rows without `kind` behave as trading. */
+export function branchKind(b: Branch): BranchKind {
+  return b.kind ?? "trading";
+}
+
+export function isHeadOfficeBranch(b: Branch): boolean {
+  return branchKind(b) === "head_office";
+}
+
+/** Shops that count toward billable location limits and can sell / move stock. */
+export function branchIsBillableShop(b: Branch): boolean {
+  return !isHeadOfficeBranch(b);
+}
+
+/** POS, receiving, assembly, stocktake (unless scoped elsewhere). */
+export function branchAllowsTradingOperations(b: Branch): boolean {
+  return !isHeadOfficeBranch(b);
+}
+
+export function normalizeBranch(b: Branch): Branch {
+  return {
+    ...b,
+    kind: branchKind(b),
+  };
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -202,14 +229,26 @@ function getDb(): DbShape {
     return { branches: [], suppliers: [], products: [], stock: [] };
   }
   const db = store.read<DbShape>("db", { branches: [], suppliers: [], products: [], stock: [] });
-  // Ensure default branch exists.
+  let write = false;
+  // Ensure default branch exists — new installs: Head office (non-trading).
   if (!db.branches.some((b) => b.id === DEFAULT_BRANCH_ID)) {
     db.branches.unshift({
       id: DEFAULT_BRANCH_ID,
-      name: "Main branch",
+      name: "Head office",
+      kind: "head_office",
       isDefault: true,
       createdAt: nowIso(),
     });
+    write = true;
+  }
+  // Legacy rows: infer trading so existing "Main branch" keeps selling until you add HO explicitly.
+  for (const b of db.branches) {
+    if (b.kind == null) {
+      b.kind = "trading";
+      write = true;
+    }
+  }
+  if (write) {
     store.write("db", db);
   }
   return db;
@@ -231,14 +270,62 @@ export const inventoryKeys = {
 export const InventoryRepo = {
   // Branches
   listBranches(): Branch[] {
-    return getDb().branches;
+    return getDb().branches.map(normalizeBranch);
   },
   getBranch(id: Id): Branch | undefined {
-    return getDb().branches.find((b) => b.id === id);
+    const b = getDb().branches.find((x) => x.id === id);
+    return b ? normalizeBranch(b) : undefined;
   },
   getDefaultBranch(): Branch {
     const branches = getDb().branches;
-    return branches.find((b) => b.isDefault) ?? branches[0]!;
+    const raw = branches.find((b) => b.isDefault) ?? branches[0]!;
+    return normalizeBranch(raw);
+  },
+  /**
+   * First branch that can sell and hold stock (not Head office). Use for POS, PO receipts, assembly, default catalog.
+   * Undefined when only Head office exists — user must add a trading shop.
+   */
+  getDefaultTradingBranch(): Branch | undefined {
+    const branches = getDb().branches.map(normalizeBranch);
+    const trading = branches.filter((b) => branchAllowsTradingOperations(b));
+    if (trading.length === 0) return undefined;
+    return trading.find((b) => b.isDefault) ?? trading[0];
+  },
+  addBranch(input: { name: string; kind?: BranchKind }): Branch {
+    const db = getDb();
+    const kind: BranchKind = input.kind ?? "trading";
+    const row: Branch = {
+      id: uid("br"),
+      name: input.name.trim() || "Shop",
+      kind,
+      createdAt: nowIso(),
+    };
+    db.branches.push(row);
+    setDb(db);
+    return normalizeBranch(row);
+  },
+  updateBranch(id: Id, patch: Partial<Pick<Branch, "name" | "kind" | "address">>): Branch | undefined {
+    const db = getDb();
+    const idx = db.branches.findIndex((b) => b.id === id);
+    if (idx < 0) return undefined;
+    const prev = db.branches[idx]!;
+    const next: Branch = {
+      ...prev,
+      ...patch,
+      id: prev.id,
+      createdAt: prev.createdAt,
+    };
+    db.branches[idx] = next;
+    setDb(db);
+    return normalizeBranch(next);
+  },
+  /** Marks one branch as default (e.g. primary trading shop for POS). Clears others. */
+  setDefaultBranch(id: Id): void {
+    const db = getDb();
+    for (const b of db.branches) {
+      b.isDefault = b.id === id;
+    }
+    setDb(db);
   },
 
   // Suppliers

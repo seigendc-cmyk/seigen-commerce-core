@@ -9,6 +9,7 @@ import { computeCartSaleTax } from "@/modules/financial/lib/pos-sale-tax";
 import { recordCogsReservesFromSale } from "@/modules/financial/services/cogs-reserves-ledger";
 import { readTaxOnSalesSettings } from "@/modules/financial/services/tax-settings";
 import { recordOutputTaxFromSale } from "@/modules/financial/services/tax-ledger";
+import { postAgentDebtorFromConsignmentSale } from "@/modules/consignment/services/consignment-operations";
 import { nextReceiptNumber } from "./receipt-number";
 import { validateStockForCart } from "./stock-validation";
 
@@ -130,7 +131,7 @@ export function buildSale(
   receiptNumber: string,
   status: SaleStatus = "completed",
 ): Sale {
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultBranch();
   const providers = loadIdeliverProviders();
   const goods = roundMoney(cart.subtotal);
   const deliveryFee = computeCartDeliveryFee(cart, providers);
@@ -206,7 +207,14 @@ export function finalizeSale(cart: Cart, payment: Payment): FinalizeSaleResult {
   const tenderErr = validateTender(cart, payment);
   if (tenderErr) return { ok: false, error: tenderErr };
 
-  const branch = InventoryRepo.getDefaultBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch();
+  if (!branch) {
+    return {
+      ok: false,
+      error:
+        "No trading shop is configured — Head office cannot ring sales. Add a trading branch under Inventory → Overview.",
+    };
+  }
   const stockErr = validateStockForCart(cart, branch.id);
   if (stockErr) return { ok: false, error: stockErr };
 
@@ -219,6 +227,13 @@ export function finalizeSale(cart: Cart, payment: Payment): FinalizeSaleResult {
 
   recordSale(sale);
   recordCogsReservesFromSale(sale);
+  postAgentDebtorFromConsignmentSale({
+    saleId: sale.id,
+    receiptNumber: sale.receiptNumber,
+    createdAt: sale.createdAt,
+    stallBranchId: sale.branchId,
+    lines: sale.lines.map((l) => ({ productId: l.productId, qty: l.qty })),
+  });
 
   if (sale.salesTaxAmount && sale.salesTaxAmount > 0) {
     recordOutputTaxFromSale({

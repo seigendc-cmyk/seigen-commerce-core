@@ -87,10 +87,11 @@ export const VENDOR_SETTINGS_PANEL_COPY: Record<VendorSettingsTabId, SettingsPan
   },
   branches: {
     title: "Branches",
-    lead: "Each branch is a place you sell or stock from—stores, warehouses, or counters.",
+    lead:
+      "Trading shops (stores, warehouses, counters) sell and hold stock. Head office / admin is separate in inventory — it does not bill as a shop and does not move stock.",
     pillars: [
-      "Name branches, set addresses and hours, and link them to registers or stock.",
-      "Reports can roll up by branch or across the whole business.",
+      "Name branches, set addresses and hours, and link them to registers or staff.",
+      "Operational stock and POS use trading locations from Inventory → Overview; reports can roll up by branch or company-wide.",
     ],
   },
   ideliver: {

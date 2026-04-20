@@ -22,6 +22,39 @@ function uid(): string {
   return `rule_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
 
+function financialSeedRules(): BiBusinessRule[] {
+  const ts = new Date().toISOString();
+  return [
+    {
+      id: uid(),
+      domain: "financial",
+      ruleKey: "financial.liquidity_oversight",
+      title: "Liquidity oversight",
+      description:
+        "Surface when liquid cash is stressed versus supplier payables and COGS funding. Drives highlights on Financial → Overview.",
+      config: { warnIfPayablesExceedLiquid: true, criticalIfFreeCashNegative: true },
+      isActive: true,
+      updatedAt: ts,
+    },
+    {
+      id: uid(),
+      domain: "financial",
+      ruleKey: "financial.cashplan_reserve_discipline",
+      title: "CashPlan reserve discipline",
+      description:
+        "When enabled, Overview flags underfunded discipline reserves (rent, tax, salaries) from CashPlan.",
+      config: { flagUnderfundedReserves: true },
+      isActive: true,
+      updatedAt: ts,
+    },
+  ];
+}
+
+function mergeFinancialRulesIfMissing(rules: BiBusinessRule[]): BiBusinessRule[] {
+  if (rules.some((r) => r.domain === "financial")) return rules;
+  return [...rules, ...financialSeedRules()];
+}
+
 function getDb(): Db {
   const store = browserLocalJson(NS);
   if (!store) return { rules: defaultRules() };
@@ -31,6 +64,12 @@ function getDb(): Db {
     store.write("business_rules", seed);
     return seed;
   }
+  const merged = mergeFinancialRulesIfMissing(raw.rules);
+  if (merged !== raw.rules) {
+    const next = { rules: merged };
+    store.write("business_rules", next);
+    return next;
+  }
   return raw;
 }
 
@@ -38,6 +77,9 @@ function setDb(db: Db) {
   const store = browserLocalJson(NS);
   if (!store) return;
   store.write("business_rules", db);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("seigen-bi-rules-updated"));
+  }
 }
 
 export function biRulesLocalStorageKey(): string {

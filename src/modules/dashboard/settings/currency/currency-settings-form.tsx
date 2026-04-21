@@ -135,7 +135,7 @@ export function CurrencySettingsForm() {
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 hover:border-white/20">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 accent-brand-orange"
+                    className="mt-0.5 h-4 w-4 accent-teal-600"
                     checked={checked}
                     disabled={sole}
                     onChange={() => toggleCurrency(c.code)}
@@ -166,7 +166,7 @@ export function CurrencySettingsForm() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
         >
           Save draft
         </button>

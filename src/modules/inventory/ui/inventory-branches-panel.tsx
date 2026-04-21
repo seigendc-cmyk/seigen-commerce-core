@@ -56,10 +56,25 @@ export function InventoryBranchesPanel() {
                 <span className="ml-2 text-neutral-600">Default</span>
               ) : null}
             </span>
+            {!isHeadOfficeBranch(b) && !b.isDefault ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-red-400 hover:text-red-300"
+                onClick={() => {
+                  if (!window.confirm(`Delete branch "${b.name}"? This cannot be undone.`)) return;
+                  const r = InventoryRepo.deleteBranch(b.id);
+                  if (!r.ok) window.alert(r.error);
+                  dispatchBranchesUpdated();
+                  refresh();
+                }}
+              >
+                Delete
+              </button>
+            ) : null}
             {!isHeadOfficeBranch(b) && !b.isDefault && trading.length > 1 ? (
               <button
                 type="button"
-                className="text-xs font-semibold text-brand-orange hover:underline"
+                className="text-xs font-semibold text-teal-600 hover:underline"
                 onClick={() => {
                   InventoryRepo.setDefaultBranch(b.id);
                   dispatchBranchesUpdated();
@@ -85,7 +100,7 @@ export function InventoryBranchesPanel() {
         </label>
         <button
           type="button"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
           onClick={() => {
             const n = name.trim();
             if (!n) return;

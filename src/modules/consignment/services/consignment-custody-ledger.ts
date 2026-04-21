@@ -27,6 +27,8 @@ export type ConsignmentCustodyEntry = {
   kind: ConsignmentCustodyKind;
   ref?: string;
   memo?: string;
+  /** Formal consignment issue invoice that authorised this movement (if any). */
+  issueInvoiceId?: string;
 };
 
 type Db = { entries: ConsignmentCustodyEntry[] };
@@ -75,6 +77,7 @@ export function appendConsignmentCustodyEntry(
     kind: entry.kind,
     ref: entry.ref,
     memo: entry.memo,
+    issueInvoiceId: entry.issueInvoiceId,
   };
   const db = getDb();
   db.entries.push(row);

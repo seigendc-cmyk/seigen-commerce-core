@@ -9,8 +9,12 @@ import { readDemoSession } from "@/lib/demo-session";
 import type { DashboardProductArea } from "@/lib/local-plan-gates";
 import { planAllowsDashboardArea } from "@/lib/local-plan-gates";
 import { useWorkspace } from "./workspace-context";
+import { useVendorStaff } from "@/modules/dashboard/settings/staff/vendor-staff-context";
+import { getActiveStaffId } from "@/modules/desk/services/sysadmin-bootstrap";
+import { getDeskProfileByStaffId } from "@/modules/desk/services/desk-profiles-store";
 
 const items = [
+  { href: "/dashboard/desk", label: "Desk", exact: true as const, area: undefined as undefined },
   { href: "/dashboard", label: "Overview", exact: true as const, area: undefined as undefined },
   {
     href: "/dashboard/inventory",
@@ -37,6 +41,7 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const workspace = useWorkspace();
+  const { staffMembers } = useVendorStaff();
   const [demo, setDemo] = useState<DemoVendorSession | null>(null);
 
   useEffect(() => {
@@ -45,8 +50,18 @@ export function DashboardSidebar() {
 
   const planId = workspace?.subscription?.plan_id ?? demo?.planId ?? null;
 
+  const showDesk = useMemo(() => {
+    const id = getActiveStaffId() ?? staffMembers[0]?.id ?? null;
+    if (!id) return true;
+    const p = getDeskProfileByStaffId(id);
+    if (!p) return true;
+    if (p.deskKind === "sysadmin") return true;
+    return p.hasDesk && !p.isTerminalOnly;
+  }, [staffMembers]);
+
   const navResolved = useMemo(() => {
-    return items.map((item) => {
+    const visible = showDesk ? items : items.filter((it) => it.href !== "/dashboard/desk");
+    return visible.map((item) => {
       if (!item.area) {
         return { ...item, resolvedHref: item.href, locked: false };
       }
@@ -57,7 +72,7 @@ export function DashboardSidebar() {
         locked: !allowed,
       };
     });
-  }, [planId]);
+  }, [planId, showDesk]);
 
   async function signOutAll() {
     await signOutVendorSession();
@@ -65,12 +80,12 @@ export function DashboardSidebar() {
   }
 
   return (
-    <aside className="vendor-panel flex w-full shrink-0 flex-col border-b border-white/10 lg:w-64 lg:border-b-0 lg:border-r">
-      <div className="flex items-center gap-2 px-4 py-4">
-        <span className="rounded bg-brand-orange px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
+    <aside className="vendor-panel flex w-full shrink-0 flex-col border-b border-slate-800/80 bg-slate-950 lg:w-64 lg:border-b-0 lg:border-r lg:border-slate-800/80">
+      <div className="flex items-center gap-2 border-b border-slate-800/60 px-4 py-4">
+        <span className="rounded bg-teal-600 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white ring-1 ring-teal-400/40">
           seiGEN
         </span>
-        <span className="text-sm font-semibold text-white">Vendor</span>
+        <span className="font-heading text-sm font-semibold text-white">Vendor</span>
       </div>
       <nav className="flex gap-1 px-2 pb-4 lg:flex-col lg:px-3">
         {navResolved.map((item) => {
@@ -82,14 +97,14 @@ export function DashboardSidebar() {
               className={[
                 "flex items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors",
                 active
-                  ? "border-white/10 bg-white/10 text-brand-orange shadow-sm"
+                  ? "border-teal-400/35 bg-teal-500/15 text-teal-100 shadow-sm ring-1 ring-teal-400/20"
                   : "vendor-nav-link-inactive",
               ].join(" ")}
               title={item.locked ? "Not on current plan — opens plans to upgrade" : undefined}
             >
               <span>{item.label}</span>
               {item.locked ? (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/90">Locked</span>
+                <span className="vc-badge-warning">Locked</span>
               ) : null}
             </Link>
           );

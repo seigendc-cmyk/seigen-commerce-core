@@ -107,14 +107,14 @@ export function BillingSettingsForm() {
             {PLANS.map((p) => (
               <li key={p.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                 <p className="font-medium text-white">{p.name}</p>
-                <p className="mt-1 text-lg font-semibold text-brand-orange">{p.monthlyPriceLabel}/mo</p>
+                <p className="mt-1 text-lg font-semibold text-teal-600">{p.monthlyPriceLabel}/mo</p>
                 <p className="mt-2 text-xs text-neutral-500">{p.purpose}</p>
               </li>
             ))}
           </ul>
           <p className="mt-4 text-sm text-neutral-500">
             Change plan from the{" "}
-            <Link href="/plans" className="text-brand-orange hover:underline">
+            <Link href="/plans" className="text-teal-600 hover:underline">
               Plans
             </Link>{" "}
             page after sign-in.
@@ -147,7 +147,7 @@ export function BillingSettingsForm() {
           </div>
           <Link
             href="/plans"
-            className="shrink-0 rounded-lg border border-white/20 px-3 py-2 text-sm font-medium text-white hover:border-brand-orange hover:text-brand-orange"
+            className="shrink-0 rounded-lg border border-white/20 px-3 py-2 text-sm font-medium text-white hover:border-teal-500 hover:text-teal-600"
           >
             View upgrade options
           </Link>
@@ -158,14 +158,14 @@ export function BillingSettingsForm() {
               key={p.planId}
               className={
                 p.isCurrent
-                  ? "rounded-xl border border-brand-orange/50 bg-brand-orange/10 p-4"
+                  ? "rounded-xl border border-teal-500/50 bg-teal-600/10 p-4"
                   : "rounded-xl border border-white/10 bg-white/[0.03] p-4"
               }
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="font-medium text-white">{p.displayName}</p>
                 {p.isCurrent ? (
-                  <span className="rounded-full bg-brand-orange/20 px-2 py-0.5 text-xs font-medium text-brand-orange">
+                  <span className="rounded-full bg-teal-600/20 px-2 py-0.5 text-xs font-medium text-teal-600">
                     Current
                   </span>
                 ) : null}
@@ -250,7 +250,7 @@ export function BillingSettingsForm() {
                       type="button"
                       disabled={busy}
                       onClick={() => void onAccept(p.id)}
-                      className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-medium text-white hover:bg-brand-orange-hover disabled:opacity-50"
+                      className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
                     >
                       Accept &amp; add to bill
                     </button>
@@ -309,7 +309,7 @@ export function BillingSettingsForm() {
                       <button
                         type="button"
                         onClick={() => setModalInvoice(inv)}
-                        className="text-sm font-medium text-brand-orange hover:underline"
+                        className="text-sm font-medium text-teal-600 hover:underline"
                       >
                         View
                       </button>

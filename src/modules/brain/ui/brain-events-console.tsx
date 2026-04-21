@@ -61,7 +61,7 @@ export function BrainEventsConsole({ showHeader = true }: BrainEventsConsoleProp
           <h1 className="text-lg font-semibold text-white">Brain events</h1>
           <p className="mt-1 max-w-3xl text-sm text-neutral-400">
             Operational memory stream — raw facts from emitters (start:{" "}
-            <code className="rounded bg-white/10 px-1 text-xs text-brand-orange">{BrainEventTypes.POS_SALE_COMPLETED}</code>
+            <code className="rounded bg-white/10 px-1 text-xs text-teal-600">{BrainEventTypes.POS_SALE_COMPLETED}</code>
             ). Rules, alerts, and scores build on this layer later.
           </p>
         </header>
@@ -131,7 +131,7 @@ export function BrainEventsConsole({ showHeader = true }: BrainEventsConsoleProp
           <button
             type="button"
             onClick={() => void load()}
-            className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+            className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
           >
             Apply filters
           </button>
@@ -179,7 +179,7 @@ export function BrainEventsConsole({ showHeader = true }: BrainEventsConsoleProp
                       <button
                         type="button"
                         onClick={() => setDetail(ev)}
-                        className="text-brand-orange hover:underline"
+                        className="text-teal-600 hover:underline"
                       >
                         Payload
                       </button>

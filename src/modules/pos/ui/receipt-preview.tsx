@@ -38,7 +38,7 @@ export function ReceiptPreview({ sale, meta = {}, className = "" }: Props) {
         {meta.legalName?.trim() ? (
           <p className="mt-0.5 text-[10px] text-neutral-500">{meta.legalName}</p>
         ) : null}
-        <p className="mt-1 font-mono text-base font-semibold text-brand-orange">{sale.receiptNumber}</p>
+        <p className="mt-1 font-mono text-base font-semibold text-teal-600">{sale.receiptNumber}</p>
         <p className="mt-1 text-xs text-neutral-400">
           {formatReceiptWhen(sale.createdAt)}
           {register ? ` · ${register}` : null}

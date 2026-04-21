@@ -2,6 +2,7 @@ import { browserLocalJson } from "@/modules/inventory/services/storage";
 import { dispatchFinancialLedgersUpdated } from "./financial-events";
 import { setScheduledNextDueDate } from "./creditor-schedule";
 import { setScheduledDebtorCollectionDate } from "./debtor-schedule";
+import { submitApprovalRequest } from "@/modules/desk/services/approval-engine";
 
 const NS = { namespace: "seigen.financial", version: 1 as const };
 
@@ -89,6 +90,42 @@ export function submitScheduleChangeRequest(input: {
   setDb(db);
   notifyQueue();
   return row;
+}
+
+/**
+ * Desk-enabled wrapper (does not remove legacy queue behavior).
+ * Creates an ApprovalRequest + linked Notification so the item appears on role desks.
+ */
+export function submitScheduleChangeRequestViaDesk(input: {
+  kind: ScheduleChangeKind;
+  entityId: string;
+  entityName: string;
+  proposedDateIso: string;
+  previousDateKey?: string;
+  branchId: string;
+  initiatedByStaffId: string;
+  initiatedByLabel: string;
+}): ScheduleChangeRequest {
+  const req = submitScheduleChangeRequest(input);
+  submitApprovalRequest({
+    tenantId: null,
+    branchId: input.branchId,
+    moduleKey: "financial",
+    actionKey: "financial.schedule_change",
+    entityType: "schedule_change_request",
+    entityId: req.id,
+    title: `Schedule change (${input.kind}) — ${input.entityName}`,
+    summary: `Proposed date: ${input.proposedDateIso}${input.previousDateKey ? ` (was due: ${input.previousDateKey})` : ""}`,
+    reason: "Missed obligation requires approval before calendar updates.",
+    priority: "normal",
+    initiatedByStaffId: input.initiatedByStaffId,
+    initiatedByLabel: input.initiatedByLabel,
+    executionMode: "approve_only",
+    payloadBefore: { previousDateKey: input.previousDateKey ?? null },
+    payloadAfter: { proposedDateIso: input.proposedDateIso },
+    metadata: { kind: input.kind, entityId: input.entityId, entityName: input.entityName },
+  });
+  return req;
 }
 
 export function approveScheduleChangeRequest(id: string): { ok: true } | { ok: false; error: string } {

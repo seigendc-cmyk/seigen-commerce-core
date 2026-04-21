@@ -21,6 +21,10 @@ export function consignmentAgentPricingForProduct(branchId: Id, productId: Id): 
   return round2(invoiceCost * (1 + premium));
 }
 
+/**
+ * Direct issue helper (legacy / tests). Prefer the consignment issue invoice module so stock only becomes
+ * sellable at the agent stall after formal invoice, approval, and posting.
+ */
 export function issueConsignmentStock(input: {
   agreementId: string;
   productId: Id;

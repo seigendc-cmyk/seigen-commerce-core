@@ -206,7 +206,7 @@ export function ProductHistoryModal({ product, onClose }: Props) {
                 filtersLabel,
                 rows: rowsWithRunning,
               })}
-              className="shrink-0 rounded-lg border border-brand-orange/50 bg-brand-orange/10 px-3 py-2 text-sm font-semibold text-brand-orange hover:bg-brand-orange/20"
+              className="shrink-0 rounded-lg border border-teal-500/50 bg-teal-600/10 px-3 py-2 text-sm font-semibold text-teal-600 hover:bg-teal-600/20"
             >
               Download PDF
             </button>
@@ -314,14 +314,14 @@ export function ProductHistoryModal({ product, onClose }: Props) {
                 setFromDate("");
                 setToDate("");
               }}
-              className="mb-0.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 hover:border-brand-orange hover:text-neutral-900"
+              className="mb-0.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 hover:border-teal-500 hover:text-neutral-900"
             >
               Clear dates
             </button>
             <button
               type="button"
               onClick={bump}
-              className="mb-0.5 rounded-lg bg-brand-orange px-3 py-2 text-xs font-semibold text-white hover:bg-brand-orange-hover"
+              className="mb-0.5 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700"
             >
               Refresh
             </button>

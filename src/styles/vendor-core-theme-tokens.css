@@ -1,0 +1,27 @@
+/**
+ * seiGEN Vendor Core — design tokens (SOT)
+ * Imported from globals.css. Tailwind theme extension mirrors key values in tailwind.config.ts.
+ */
+:root {
+  /* Radii */
+  --vc-radius-sm: 0.5rem;
+  --vc-radius-md: 0.75rem;
+  --vc-radius-lg: 1rem;
+  --vc-radius-xl: 1.25rem;
+  --vc-radius-2xl: 1.5rem;
+
+  /* Focus (forms on light surfaces) */
+  --vc-focus-ring: 0 0 0 2px rgb(255 255 255 / 1), 0 0 0 4px rgb(20 184 166 / 0.45);
+
+  /* Semantic chip backgrounds (light UI) */
+  --vc-chip-info-bg: rgb(240 253 250);
+  --vc-chip-info-fg: rgb(17 94 89);
+  --vc-chip-success-bg: rgb(247 254 231);
+  --vc-chip-success-fg: rgb(63 98 18);
+  --vc-chip-pending-bg: rgb(248 250 252);
+  --vc-chip-pending-fg: rgb(51 65 85);
+  --vc-chip-danger-bg: rgb(254 242 242);
+  --vc-chip-danger-fg: rgb(153 27 27);
+  --vc-chip-warning-bg: rgb(255 251 235);
+  --vc-chip-warning-fg: rgb(146 64 14);
+}

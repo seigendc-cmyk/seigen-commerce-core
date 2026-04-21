@@ -5,11 +5,8 @@ import { useMemo } from "react";
 import { DashboardTopBar } from "@/components/dashboard/dashboard-top-bar";
 import { BusinessProfileForm } from "@/modules/dashboard/settings/business-profile/business-profile-form";
 import { BranchesSettingsForm } from "@/modules/dashboard/settings/branches/branches-settings-form";
-import { VendorBranchesProvider } from "@/modules/dashboard/settings/branches/vendor-branches-context";
 import { RolesPermissionsForm } from "@/modules/dashboard/settings/roles/roles-permissions-form";
-import { VendorRolesProvider } from "@/modules/dashboard/settings/roles/vendor-roles-context";
 import { StaffSettingsForm } from "@/modules/dashboard/settings/staff/staff-settings-form";
-import { VendorStaffProvider } from "@/modules/dashboard/settings/staff/vendor-staff-context";
 import { IdeliverSettingsForm } from "@/modules/dashboard/settings/ideliver/ideliver-settings-form";
 import { CurrencySettingsForm } from "@/modules/dashboard/settings/currency/currency-settings-form";
 import { DevicesSettingsForm } from "@/modules/dashboard/settings/devices/devices-settings-form";
@@ -33,15 +30,15 @@ export type { VendorSettingsTabId } from "@/modules/dashboard/settings/vendor-se
 function SettingsDetailPanel({ tabId }: { tabId: VendorSettingsTabId }) {
   const copy = VENDOR_SETTINGS_PANEL_COPY[tabId];
   return (
-    <section className="vendor-panel-soft rounded-2xl p-6">
-      <h2 className="text-base font-semibold text-white">{copy.title}</h2>
-      <p className="mt-2 text-sm leading-relaxed text-neutral-300">{copy.lead}</p>
-      <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-300">
+    <section className="vc-card-accent-indigo">
+      <h2 className="font-heading text-base font-semibold text-slate-900">{copy.title}</h2>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600">{copy.lead}</p>
+      <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-600">
         {copy.pillars.map((line) => (
           <li key={line}>{line}</li>
         ))}
       </ul>
-      <p className="mt-5 text-xs text-neutral-500">
+      <p className="mt-5 text-xs text-slate-500">
         Detailed screens will connect to your workspace as each area is turned on.
       </p>
     </section>
@@ -66,10 +63,7 @@ export function VendorSettingsPage() {
   }
 
   return (
-    <VendorRolesProvider>
-      <VendorBranchesProvider>
-        <VendorStaffProvider>
-      <>
+    <>
         <DashboardTopBar
           title="Settings"
           subtitle="Manage your business details, people, branches, money, and devices in one place."
@@ -127,9 +121,6 @@ export function VendorSettingsPage() {
             <SettingsDetailPanel tabId={tab} />
           )}
         </div>
-      </>
-        </VendorStaffProvider>
-      </VendorBranchesProvider>
-    </VendorRolesProvider>
+    </>
   );
 }

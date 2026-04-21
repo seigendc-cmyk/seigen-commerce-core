@@ -1,0 +1,92 @@
+import type { ApprovalRoutePolicy } from "@/modules/desk/types/approval";
+
+export const DEFAULT_APPROVAL_POLICIES: ApprovalRoutePolicy[] = [
+  {
+    id: "pol_inventory_price_change",
+    moduleKey: "inventory",
+    actionKey: "inventory.price_change",
+    name: "Inventory price change",
+    description: "Protect price governance; manager or sysadmin approval required.",
+    branchScopeMode: "same_branch",
+    steps: [
+      { stepNumber: 1, approverMode: "role", roleIds: ["preset-manager"], minApprovalsRequired: 1, allowReject: true, allowReturn: true, allowEscalate: true },
+      { stepNumber: 2, approverMode: "sysadmin", minApprovalsRequired: 1, allowReject: true, allowReturn: false, allowEscalate: false },
+    ],
+    autoEscalateAfterMinutes: 60 * 24,
+    isActive: true,
+  },
+  {
+    id: "pol_inventory_stock_writeoff",
+    moduleKey: "inventory",
+    actionKey: "inventory.stock_writeoff",
+    name: "Stock write-off",
+    description: "Write-offs require inventory control + manager oversight.",
+    branchScopeMode: "same_branch",
+    steps: [
+      { stepNumber: 1, approverMode: "role", roleIds: ["preset-manager"], minApprovalsRequired: 1, allowReject: true, allowReturn: true, allowEscalate: true },
+    ],
+    autoEscalateAfterMinutes: 60 * 24,
+    isActive: true,
+  },
+  {
+    id: "pol_pos_refund_override",
+    moduleKey: "pos",
+    actionKey: "pos.refund_override",
+    name: "Refund override",
+    description: "Refunds/voids require supervisor or manager.",
+    branchScopeMode: "same_branch",
+    steps: [
+      { stepNumber: 1, approverMode: "role", roleIds: ["preset-manager"], minApprovalsRequired: 1, allowReject: true, allowReturn: true, allowEscalate: true },
+    ],
+    autoEscalateAfterMinutes: 60 * 8,
+    isActive: true,
+  },
+  {
+    id: "pol_financial_payment_release",
+    moduleKey: "financial",
+    actionKey: "financial.payment_release",
+    name: "Payment release",
+    description: "High-risk cash outflows require finance review and sysadmin oversight for high amounts.",
+    branchScopeMode: "same_branch",
+    steps: [
+      { stepNumber: 1, approverMode: "role", roleIds: ["preset-manager"], minApprovalsRequired: 1, allowReject: true, allowReturn: true, allowEscalate: true },
+      { stepNumber: 2, approverMode: "sysadmin", minApprovalsRequired: 1, allowReject: true, allowReturn: false, allowEscalate: false },
+    ],
+    autoEscalateAfterMinutes: 60 * 24,
+    isActive: true,
+  },
+  {
+    id: "pol_financial_schedule_change",
+    moduleKey: "financial",
+    actionKey: "financial.schedule_change",
+    name: "Schedule change approval",
+    description: "Missed AP/AR schedule changes require finance or sysadmin approval.",
+    branchScopeMode: "same_branch",
+    steps: [
+      { stepNumber: 1, approverMode: "role", roleIds: ["preset-manager"], minApprovalsRequired: 1, allowReject: true, allowReturn: true, allowEscalate: true },
+    ],
+    autoEscalateAfterMinutes: 60 * 24,
+    isActive: true,
+  },
+  {
+    id: "pol_settings_role_change",
+    moduleKey: "settings",
+    actionKey: "settings.role_change",
+    name: "Role change",
+    description: "Role definitions and permissions are sysadmin-only governance actions.",
+    branchScopeMode: "all",
+    steps: [{ stepNumber: 1, approverMode: "sysadmin", minApprovalsRequired: 1, allowReject: true, allowReturn: false, allowEscalate: false }],
+    isActive: true,
+  },
+  {
+    id: "pol_settings_staff_access_change",
+    moduleKey: "settings",
+    actionKey: "settings.staff_access_change",
+    name: "Staff access change",
+    description: "Staff access/privilege changes require sysadmin.",
+    branchScopeMode: "all",
+    steps: [{ stepNumber: 1, approverMode: "sysadmin", minApprovalsRequired: 1, allowReject: true, allowReturn: true, allowEscalate: false }],
+    isActive: true,
+  },
+];
+

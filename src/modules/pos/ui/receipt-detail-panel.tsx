@@ -21,14 +21,14 @@ export function ReceiptDetailPanel({
   dismissLabel = "Dismiss",
 }: Props) {
   return (
-    <div className="vendor-panel rounded-2xl border border-brand-orange/35 p-4">
+    <div className="vendor-panel rounded-2xl border border-teal-500/35 p-4">
       <div className="mb-3 flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-white">{title}</h3>
         {onDismiss ? (
           <button
             type="button"
             onClick={onDismiss}
-            className="shrink-0 text-xs font-semibold text-brand-orange hover:underline"
+            className="shrink-0 text-xs font-semibold text-teal-600 hover:underline"
           >
             {dismissLabel}
           </button>

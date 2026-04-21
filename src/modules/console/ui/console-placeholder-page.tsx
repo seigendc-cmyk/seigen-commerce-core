@@ -25,7 +25,7 @@ export function ConsolePlaceholderPage({
           <ul className="mt-4 space-y-2 text-sm text-neutral-200">
             {whatWillBeHere.map((x) => (
               <li key={x} className="flex gap-2">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-orange" aria-hidden />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-600" aria-hidden />
                 <span>{x}</span>
               </li>
             ))}
@@ -33,13 +33,13 @@ export function ConsolePlaceholderPage({
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/console/plans"
-              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
             >
               View plans catalog
             </Link>
             <Link
               href="/dashboard"
-              className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+              className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
             >
               Back to vendor dashboard
             </Link>

@@ -116,7 +116,7 @@ export function DashboardClient() {
           <div className="flex flex-wrap justify-center gap-3">
             <Link
               href="/plans"
-              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
             >
               View plans
             </Link>
@@ -152,103 +152,131 @@ export function DashboardClient() {
       <DashboardTopBar title={`Welcome, ${welcomeName}`} subtitle={subtitleParts.join(" · ")} />
       <div className="flex-1 space-y-8 px-4 py-8 sm:px-6">
         {workspace?.user && !workspace.tenant ? (
-          <div className="rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm">
             Your account is signed in, but no workspace row was found yet. If you just confirmed email, wait a
             moment — we retry provisioning automatically. You can also complete signup again from{" "}
-            <Link href="/signup" className="font-semibold underline">
+            <Link href="/signup" className="font-semibold text-amber-900 underline underline-offset-2">
               Sign up
             </Link>
             .
           </div>
         ) : null}
 
-        <section className="vendor-panel rounded-2xl p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-white">Current plan (commercial truth)</h2>
-              <p className="mt-1 text-sm text-neutral-300">{plan?.purpose ?? effectivePlanId ?? "—"}</p>
-              {workspace?.subscription ? (
-                <p className="mt-3 text-xs text-neutral-400">
-                  Backend status:{" "}
-                  <span className="font-medium text-neutral-200">
-                    {subscriptionStatusLabel(workspace.subscription.status)}
-                  </span>
-                  {workspace.subscription.status === "pending_activation" ? (
-                    <span className="text-neutral-500">
-                      {" "}
-                      — entitlements follow this plan; only billing confirmation may still be pending.
-                    </span>
-                  ) : null}
-                </p>
-              ) : (
-                <p className="mt-3 text-xs text-neutral-400">
-                  No Supabase subscription row yet — using local session for module gating until provisioned.
-                </p>
-              )}
-              {demo ? (
-                <p className="mt-2 text-xs text-neutral-500">
-                  Local bridge: {DEMO_WORKSPACE_STATUS_COPY[demo.workspaceStatus]}
-                </p>
-              ) : null}
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold tabular-nums text-white">
-                {plan?.monthlyPriceLabel ?? "—"}
-                {plan && plan.monthlyPriceLabel !== "Custom" ? (
-                  <span className="text-sm font-medium text-neutral-400">/mo</span>
-                ) : null}
-              </p>
+        <section className="vc-dashboard-command-hero">
+          <div className="vc-dashboard-command-hero-inner">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-400/95">Vendor Core</p>
+            <h2 className="font-heading mt-2 max-w-2xl text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              One workspace. Total operational visibility.
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
+              Run stock, sales, staff, and governance from a single disciplined command center—local-first today,
+              tenant-aware as you connect services.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/dashboard/inventory" className="vc-btn-momentum">
+                Open inventory
+              </Link>
               <Link
-                href="/plans"
-                className="mt-2 inline-block text-sm font-semibold text-brand-orange hover:underline"
+                href="/dashboard/settings"
+                className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:border-white/35 hover:bg-white/10"
               >
-                Compare or change plan
+                Workspace settings
               </Link>
             </div>
           </div>
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Included in your plan
-              </h3>
-              <ul className="mt-3 space-y-2 text-sm text-neutral-200">
-                {plan?.includedModules.map((m) => (
-                  <li key={m} className="flex gap-2">
-                    <span className="font-bold text-emerald-400" aria-hidden>
-                      +
+        </section>
+
+        <section className="vc-hero-banner">
+          <div className="vc-hero-banner-inner">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="font-heading text-lg font-semibold tracking-tight text-white">
+                  Current plan (commercial truth)
+                </h2>
+                <p className="mt-1 text-sm text-slate-300">{plan?.purpose ?? effectivePlanId ?? "—"}</p>
+                {workspace?.subscription ? (
+                  <p className="mt-3 text-xs text-slate-400">
+                    Backend status:{" "}
+                    <span className="font-medium text-slate-200">
+                      {subscriptionStatusLabel(workspace.subscription.status)}
                     </span>
-                    <span>
-                      <span className="font-medium text-white">{PLAN_MODULE_INFO[m].label}</span>
-                      <span className="text-neutral-400"> — {PLAN_MODULE_INFO[m].blurb}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                    {workspace.subscription.status === "pending_activation" ? (
+                      <span className="text-slate-500">
+                        {" "}
+                        — entitlements follow this plan; only billing confirmation may still be pending.
+                      </span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="mt-3 text-xs text-slate-400">
+                    No Supabase subscription row yet — using local session for module gating until provisioned.
+                  </p>
+                )}
+                {demo ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Local bridge: {DEMO_WORKSPACE_STATUS_COPY[demo.workspaceStatus]}
+                  </p>
+                ) : null}
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-2xl font-bold tabular-nums text-white">
+                  {plan?.monthlyPriceLabel ?? "—"}
+                  {plan && plan.monthlyPriceLabel !== "Custom" ? (
+                    <span className="ml-1 font-sans text-sm font-medium text-slate-400">/mo</span>
+                  ) : null}
+                </p>
+                <Link
+                  href="/plans"
+                  className="mt-2 inline-block text-sm font-semibold text-teal-300 hover:text-teal-200 hover:underline"
+                >
+                  Compare or change plan
+                </Link>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Not included yet</h3>
-              <p className="mt-1 text-xs text-neutral-500">
-                Shown for your tier; unlock by upgrading when billing connects to Supabase.
-              </p>
-              <ul className="mt-3 space-y-2 text-sm text-neutral-400">
-                {missingModules.map((m) => (
-                  <li key={m} className="flex gap-2">
-                    <span className="text-neutral-600" aria-hidden>
-                      —
-                    </span>
-                    <span>
-                      <span className="font-medium text-neutral-300">{PLAN_MODULE_INFO[m].label}</span>
-                      <span className="text-neutral-500"> — {PLAN_MODULE_INFO[m].blurb}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+            <div className="mt-6 grid gap-6 border-t border-white/10 pt-6 lg:grid-cols-2">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Included in your plan
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm text-slate-200">
+                  {plan?.includedModules.map((m) => (
+                    <li key={m} className="flex gap-2">
+                      <span className="font-bold text-lime-400" aria-hidden>
+                        +
+                      </span>
+                      <span>
+                        <span className="font-medium text-white">{PLAN_MODULE_INFO[m].label}</span>
+                        <span className="text-slate-400"> — {PLAN_MODULE_INFO[m].blurb}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Not included yet</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Shown for your tier; unlock by upgrading when billing connects to Supabase.
+                </p>
+                <ul className="mt-3 space-y-2 text-sm text-slate-400">
+                  {missingModules.map((m) => (
+                    <li key={m} className="flex gap-2">
+                      <span className="text-slate-600" aria-hidden>
+                        —
+                      </span>
+                      <span>
+                        <span className="font-medium text-slate-300">{PLAN_MODULE_INFO[m].label}</span>
+                        <span className="text-slate-500"> — {PLAN_MODULE_INFO[m].blurb}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </section>
 
         <section>
-          <h2 className="text-base font-semibold text-brand-charcoal">Modules</h2>
+          <h2 className="vendor-section-title">Modules</h2>
           <p className="mt-1 text-sm text-neutral-600">
             Operational modules stay local-first. Plan rules below use your effective plan (Supabase subscription when
             present, otherwise local session).
@@ -266,26 +294,22 @@ export function DashboardClient() {
                   key={card.title}
                   href={href}
                   className={[
-                    "vendor-panel rounded-2xl p-5 transition-colors",
+                    "vc-card !block !p-5 transition-shadow hover:shadow-md",
                     gated
-                      ? "border-amber-500/35 hover:border-amber-500/50"
-                      : "hover:border-brand-orange/60",
+                      ? "border-amber-200 hover:border-amber-300"
+                      : "hover:border-teal-300 hover:shadow-vc-glow-teal",
                   ].join(" ")}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-base font-semibold text-white">{card.title}</h3>
+                    <h3 className="font-heading text-base font-semibold text-slate-900">{card.title}</h3>
                     {gated ? (
-                      <span className="shrink-0 rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
-                        Locked
-                      </span>
+                      <span className="vc-badge-warning shrink-0">Locked</span>
                     ) : (
-                      <span className="shrink-0 rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
-                        Included
-                      </span>
+                      <span className="vc-badge-success shrink-0">Included</span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-neutral-400">{card.body}</p>
-                  <p className="mt-4 text-sm font-medium text-brand-orange">
+                  <p className="mt-2 text-sm text-slate-600">{card.body}</p>
+                  <p className="mt-4 text-sm font-semibold text-teal-700">
                     {gated ? "Upgrade on plans →" : "Open →"}
                   </p>
                 </Link>
@@ -294,44 +318,44 @@ export function DashboardClient() {
           </div>
         </section>
 
-        <section className="vendor-panel-soft rounded-2xl p-6">
-          <h2 className="text-base font-semibold text-white">Workspace profile</h2>
+        <section className="vc-card-accent-teal">
+          <h2 className="font-heading text-base font-semibold text-slate-900">Workspace profile</h2>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-neutral-400">Signed-in user</dt>
-              <dd className="text-neutral-200">{workspace?.user?.email ?? "— (local demo only)"}</dd>
+              <dt className="text-slate-500">Signed-in user</dt>
+              <dd className="text-slate-900">{workspace?.user?.email ?? "— (local demo only)"}</dd>
             </div>
             <div>
-              <dt className="text-neutral-400">Tenant (Supabase)</dt>
-              <dd className="text-neutral-200">{workspace?.tenant?.name ?? "—"}</dd>
+              <dt className="text-slate-500">Tenant (Supabase)</dt>
+              <dd className="text-slate-900">{workspace?.tenant?.name ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-neutral-400">Contact</dt>
-              <dd className="text-neutral-200">
+              <dt className="text-slate-500">Contact</dt>
+              <dd className="text-slate-900">
                 {workspace?.tenant?.contact_name ?? demo?.contactName ?? "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-neutral-400">Email (local bridge)</dt>
-              <dd className="text-neutral-200">{demo?.email ?? workspace?.user?.email ?? "—"}</dd>
+              <dt className="text-slate-500">Email (local bridge)</dt>
+              <dd className="text-slate-900">{demo?.email ?? workspace?.user?.email ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-neutral-400">Phone</dt>
-              <dd className="text-neutral-200">{workspace?.tenant?.phone ?? demo?.phone ?? "—"}</dd>
+              <dt className="text-slate-500">Phone</dt>
+              <dd className="text-slate-900">{workspace?.tenant?.phone ?? demo?.phone ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-neutral-400">Plan id (effective)</dt>
-              <dd className="text-neutral-200">{effectivePlanId ?? "—"}</dd>
+              <dt className="text-slate-500">Plan id (effective)</dt>
+              <dd className="font-mono text-sm text-slate-800">{effectivePlanId ?? "—"}</dd>
             </div>
             {demo ? (
               <div>
-                <dt className="text-neutral-400">Local session opened</dt>
-                <dd className="text-neutral-200">{formatSessionWhen(demo.createdAt)}</dd>
+                <dt className="text-slate-500">Local session opened</dt>
+                <dd className="font-mono text-sm text-slate-800">{formatSessionWhen(demo.createdAt)}</dd>
               </div>
             ) : null}
             <div>
-              <dt className="text-neutral-400">Local gates (inventory / POS / CashPlan)</dt>
-              <dd className="font-mono text-xs leading-relaxed text-neutral-200">
+              <dt className="text-slate-500">Local gates (inventory / POS / CashPlan)</dt>
+              <dd className="font-mono text-xs leading-relaxed text-slate-800">
                 inventory_stock:{" "}
                 {planAllowsDashboardArea(effectivePlanId, "inventory") ? "allowed" : "blocked"} · pos_checkout:{" "}
                 {planAllowsDashboardArea(effectivePlanId, "pos") ? "allowed" : "blocked"} · cash_plan:{" "}

@@ -137,11 +137,11 @@ export function SignUpForm({ planFromQuery }: { planFromQuery?: string }) {
   }
 
   const planSummary = (
-    <div className="space-y-4 rounded-2xl border border-brand-orange/40 bg-gradient-to-b from-orange-50/80 to-white p-5 shadow-sm">
+    <div className="space-y-4 rounded-2xl border border-brand-orange/40 bg-gradient-to-b from-orange-50/90 via-white to-white p-5 shadow-sm">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Your selected plan</p>
         <p className="mt-1 text-xl font-semibold text-neutral-900">{plan.name}</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums text-brand-orange">
+        <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-brand-orange">
           {plan.monthlyPriceLabel}
           {plan.monthlyPriceLabel !== "Custom" ? (
             <span className="text-sm font-semibold text-neutral-600">/mo</span>

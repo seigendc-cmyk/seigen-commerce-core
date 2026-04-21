@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useVendorBranches } from "@/modules/dashboard/settings/branches/vendor-branches-context";
 import { useVendorRoles } from "@/modules/dashboard/settings/roles/vendor-roles-context";
+import { readVendorCore, writeVendorCore } from "@/modules/dashboard/settings/vendor-core-storage";
 import {
   emptyActivityRow,
   emptyEmploymentRow,
@@ -21,6 +22,17 @@ import {
   type StaffActivityRow,
   type StaffMember,
 } from "@/modules/dashboard/settings/staff/staff-types";
+import { computeDeskEligibilityForRole } from "@/modules/desk/services/desk-eligibility";
+import { upsertDeskProfile } from "@/modules/desk/services/desk-profiles-store";
+import {
+  ensureSeigenSupportStaff,
+  ensureSysAdminStaff,
+  getActiveStaffId,
+  SEIGEN_SUPPORT_STAFF_ID,
+  SYSADMIN_STAFF_ID,
+  setActiveStaffId,
+} from "@/modules/desk/services/sysadmin-bootstrap";
+import { applyStartupStaffAccessCodesIfNeededSync } from "@/modules/dashboard/settings/staff/staff-access-codes";
 
 type VendorStaffContextValue = {
   staffMembers: StaffMember[];
@@ -49,9 +61,21 @@ export function VendorStaffProvider({ children }: { children: ReactNode }) {
 
   const defaultBranchId = branches[0]?.id ?? "";
 
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>(() => [
-    emptyStaffMember(`${staffListId}-s0`, defaultBranchId),
-  ]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>(() => {
+    const stored = readVendorCore<StaffMember[]>("staff", []);
+    const seeded = stored.length > 0 ? stored : [emptyStaffMember(`${staffListId}-s0`, defaultBranchId)];
+    const withSys = ensureSysAdminStaff(seeded, defaultBranchId);
+    const withBoot = ensureSeigenSupportStaff(withSys, defaultBranchId);
+    const needsPersist =
+      stored.length === 0 ||
+      withBoot.length !== stored.length ||
+      !stored.some((s) => s.id === SYSADMIN_STAFF_ID) ||
+      !stored.some((s) => s.id === SEIGEN_SUPPORT_STAFF_ID);
+    if (needsPersist) writeVendorCore("staff", withBoot);
+    if (!getActiveStaffId()) setActiveStaffId(withBoot[0]?.id ?? null);
+    applyStartupStaffAccessCodesIfNeededSync();
+    return withBoot;
+  });
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,7 +87,11 @@ export function VendorStaffProvider({ children }: { children: ReactNode }) {
   }, [branches]);
 
   const updateStaff = useCallback((staffId: string, patch: Partial<StaffMember>) => {
-    setStaffMembers((rows) => rows.map((r) => (r.id === staffId ? { ...r, ...patch } : r)));
+    setStaffMembers((rows) => {
+      const next = rows.map((r) => (r.id === staffId ? { ...r, ...patch } : r));
+      writeVendorCore("staff", next);
+      return next;
+    });
   }, []);
 
   const addStaff = useCallback(() => {
@@ -72,12 +100,21 @@ export function VendorStaffProvider({ children }: { children: ReactNode }) {
     const branchId = branches[0]?.id ?? "";
     nextEmploymentSeq.current[id] = 1;
     nextActivitySeq.current[id] = 1;
-    setStaffMembers((rows) => [...rows, emptyStaffMember(id, branchId)]);
+    setStaffMembers((rows) => {
+      const next = [...rows, emptyStaffMember(id, branchId)];
+      writeVendorCore("staff", next);
+      return next;
+    });
     setExpandedStaffId(id);
   }, [staffListId, branches]);
 
   const removeStaff = useCallback((staffId: string) => {
-    setStaffMembers((rows) => (rows.length <= 1 ? rows : rows.filter((r) => r.id !== staffId)));
+    if (staffId === SYSADMIN_STAFF_ID || staffId === SEIGEN_SUPPORT_STAFF_ID) return;
+    setStaffMembers((rows) => {
+      const next = rows.length <= 1 ? rows : rows.filter((r) => r.id !== staffId);
+      writeVendorCore("staff", next);
+      return next;
+    });
     setExpandedStaffId((cur) => (cur === staffId ? null : cur));
   }, []);
 
@@ -169,6 +206,25 @@ export function VendorStaffProvider({ children }: { children: ReactNode }) {
       }),
     );
   }, [roles]);
+
+  useEffect(() => {
+    // Auto-create/refresh desk profiles based on staff + role eligibility.
+    for (const m of staffMembers) {
+      const role = m.assignedRoleId ? roles.find((r) => r.id === m.assignedRoleId) : undefined;
+      const elig = computeDeskEligibilityForRole(role);
+      const roleNameSnapshot = role?.name?.trim() ? role.name.trim() : m.assignedRoleId ? "Role" : "Unassigned";
+      upsertDeskProfile({
+        staffId: m.id,
+        tenantId: null,
+        branchScope: elig.deskKind === "sysadmin" ? "all" : [m.branchId],
+        roleId: m.assignedRoleId || "",
+        roleNameSnapshot,
+        hasDesk: elig.hasDesk,
+        deskKind: elig.deskKind,
+        isTerminalOnly: elig.isTerminalOnly,
+      });
+    }
+  }, [staffMembers, roles]);
 
   const value = useMemo(
     () => ({

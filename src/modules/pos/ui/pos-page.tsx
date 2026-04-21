@@ -17,6 +17,7 @@ import {
   addOrIncrementFromProduct,
   emptyCart,
   incrementLine,
+  overrideLineUnitPrice,
   removeLine,
   setCartDelivery,
   setLineQty,
@@ -28,6 +29,7 @@ import { finalizeSale } from "../services/sales-service";
 import type { Cart, PaymentMethod, Sale } from "../types/pos";
 import { PosReceiptBrandingPanel } from "./pos-receipt-branding-panel";
 import { PosSalesHistory } from "./pos-sales-history";
+import { authzCheck } from "@/modules/authz/authz-actions";
 
 function money(n: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -62,6 +64,8 @@ export function PosPage() {
   const [ideliverProviders, setIdeliverProviders] = useState<IdeliverExternalProvider[]>([]);
   const [finTick, setFinTick] = useState(0);
   const [branchTick, setBranchTick] = useState(0);
+  const [priceEditFor, setPriceEditFor] = useState<string | null>(null);
+  const [priceEditValue, setPriceEditValue] = useState("");
 
   const refreshCatalog = useCallback(() => setCatalogVersion((v) => v + 1), []);
 
@@ -179,6 +183,32 @@ export function PosPage() {
     setStatus(null);
   }
 
+  async function applyPriceOverride(productId: string) {
+    const next = Number(priceEditValue);
+    if (!Number.isFinite(next) || next <= 0) {
+      setStatus("Enter a valid unit price.");
+      setTimeout(() => setStatus(null), 3500);
+      return;
+    }
+
+    const auth = await authzCheck("pos.price.override", {
+      scopeEntityType: "terminal",
+      // terminal scope can be introduced later; for now, this validates permission + critical reason rules.
+      criticalReason: `POS price override for ${productId} to ${next}`,
+    });
+    if (!auth.allowed) {
+      setStatus(auth.reasonMessage);
+      setTimeout(() => setStatus(null), 4500);
+      return;
+    }
+
+    setCart((c) => overrideLineUnitPrice(c, productId, next));
+    setPriceEditFor(null);
+    setPriceEditValue("");
+    setStatus("Price override applied.");
+    setTimeout(() => setStatus(null), 2500);
+  }
+
   function completeSale() {
     const amount = Number(tenderInput);
     const payment = { method: paymentMethod, amount: Number.isFinite(amount) ? amount : 0 };
@@ -218,7 +248,7 @@ export function PosPage() {
           <div className="col-span-full rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             <strong className="text-amber-50">No trading shop yet.</strong> Head office cannot ring sales or hold POS
             stock. Add a trading branch under{" "}
-            <Link href="/dashboard/inventory" className="font-semibold text-brand-orange underline">
+            <Link href="/dashboard/inventory" className="font-semibold text-teal-600 underline">
               Inventory → Overview
             </Link>
             .
@@ -258,7 +288,7 @@ export function PosPage() {
                         className={
                           blocked
                             ? "flex w-full cursor-not-allowed items-start justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5 text-left text-sm opacity-60"
-                            : "flex w-full items-start justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm transition-colors hover:border-brand-orange/40 hover:bg-white/5"
+                            : "flex w-full items-start justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm transition-colors hover:border-teal-500/40 hover:bg-white/5"
                         }
                       >
                         <div className="flex items-start gap-3">
@@ -279,7 +309,7 @@ export function PosPage() {
                           </div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="font-semibold text-brand-orange">{money(p.sellingPrice)}</p>
+                          <p className="font-semibold text-teal-600">{money(p.sellingPrice)}</p>
                         </div>
                       </button>
                     </li>
@@ -293,7 +323,7 @@ export function PosPage() {
         <section className="vendor-panel flex flex-col rounded-2xl lg:min-w-[360px]">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <h2 className="text-sm font-semibold text-white">Cart</h2>
-            <Link href="/dashboard/inventory" className="text-xs font-semibold text-brand-orange hover:underline">
+            <Link href="/dashboard/inventory" className="text-xs font-semibold text-teal-600 hover:underline">
               Inventory
             </Link>
           </div>
@@ -314,6 +344,48 @@ export function PosPage() {
                         <p className="text-xs text-neutral-400">
                           {it.sku} @ {money(it.unitPrice)}
                         </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          {priceEditFor === it.productId ? (
+                            <>
+                              <input
+                                value={priceEditValue}
+                                onChange={(e) => setPriceEditValue(e.target.value)}
+                                inputMode="decimal"
+                                placeholder={String(it.unitPrice)}
+                                className="vendor-field w-28 rounded px-2 py-1 text-xs"
+                                aria-label={`Override unit price for ${it.name}`}
+                              />
+                              <button
+                                type="button"
+                                className="rounded border border-white/20 px-2 py-1 text-[11px] font-semibold text-white hover:border-teal-500"
+                                onClick={() => void applyPriceOverride(it.productId)}
+                              >
+                                Apply
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded border border-white/20 px-2 py-1 text-[11px] font-semibold text-neutral-200 hover:border-white/40"
+                                onClick={() => {
+                                  setPriceEditFor(null);
+                                  setPriceEditValue("");
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className="rounded border border-white/15 px-2 py-1 text-[11px] font-semibold text-neutral-200 hover:border-teal-500 hover:text-white"
+                              onClick={() => {
+                                setPriceEditFor(it.productId);
+                                setPriceEditValue(String(it.unitPrice));
+                              }}
+                            >
+                              Override price
+                            </button>
+                          )}
+                        </div>
                         {it.qty > (onHandByProductId.get(it.productId) ?? 0) ? (
                           <p className="mt-1 text-xs font-medium text-amber-400">
                             Only {onHandByProductId.get(it.productId) ?? 0} on hand at default branch.
@@ -326,7 +398,7 @@ export function PosPage() {
                       <button
                         type="button"
                         aria-label="Decrease quantity"
-                        className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-brand-orange"
+                        className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-teal-500"
                         onClick={() =>
                           setCart((c) =>
                             incrementLine(c, it.productId, -1, onHandByProductId.get(it.productId)),
@@ -358,7 +430,7 @@ export function PosPage() {
                       <button
                         type="button"
                         aria-label="Increase quantity"
-                        className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-brand-orange"
+                        className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-teal-500"
                         disabled={it.qty >= (onHandByProductId.get(it.productId) ?? 0)}
                         onClick={() =>
                           setCart((c) =>
@@ -388,7 +460,7 @@ export function PosPage() {
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">iDeliver</h3>
                 <Link
                   href="/dashboard/settings?tab=ideliver"
-                  className="text-[10px] font-semibold text-brand-orange hover:underline"
+                  className="text-[10px] font-semibold text-teal-600 hover:underline"
                 >
                   Configure staff &amp; fares
                 </Link>
@@ -396,7 +468,7 @@ export function PosPage() {
               <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-neutral-200">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-brand-orange"
+                  className="h-4 w-4 accent-teal-600"
                   checked={cart.delivery.enabled}
                   onChange={(e) =>
                     setCart((c) => setCartDelivery(c, { enabled: e.target.checked }))
@@ -462,7 +534,7 @@ export function PosPage() {
                   <label className="flex cursor-pointer items-start gap-2 text-xs text-neutral-200">
                     <input
                       type="checkbox"
-                      className="mt-0.5 h-4 w-4 accent-brand-orange"
+                      className="mt-0.5 h-4 w-4 accent-teal-600"
                       checked={cart.delivery.overrideEnabled}
                       onChange={(e) =>
                         setCart((c) => setCartDelivery(c, { overrideEnabled: e.target.checked }))
@@ -499,7 +571,7 @@ export function PosPage() {
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-emerald-200/90">COGS Reserves</h3>
                 <Link
                   href="/dashboard/financial?tab=seed"
-                  className="text-[10px] font-semibold text-brand-orange hover:underline"
+                  className="text-[10px] font-semibold text-teal-600 hover:underline"
                 >
                   Seed Account
                 </Link>
@@ -536,7 +608,7 @@ export function PosPage() {
               ) : null}
               <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
                 <span className="text-sm font-medium text-neutral-200">Amount due</span>
-                <span className="text-lg font-semibold text-brand-orange">{money(amountDue)}</span>
+                <span className="text-lg font-semibold text-teal-600">{money(amountDue)}</span>
               </div>
             </div>
 
@@ -583,7 +655,7 @@ export function PosPage() {
               type="button"
               disabled={cart.items.length === 0 || hasInsufficientStock || !hasTradingShop}
               onClick={completeSale}
-              className="w-full rounded-lg bg-brand-orange py-3 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:opacity-40"
+              className="w-full rounded-lg bg-teal-600 py-3 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-40"
             >
               Complete sale
             </button>

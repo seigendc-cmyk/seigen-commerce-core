@@ -12,12 +12,16 @@ function Icon({ d }: { d: string }) {
 
 export function WindowControls({
   minimized,
+  maximized,
   onMinimize,
+  onMaximize,
   onRestore,
   onClose,
 }: {
   minimized: boolean;
+  maximized?: boolean;
   onMinimize: () => void;
+  onMaximize?: () => void;
   onRestore: () => void;
   onClose: () => void;
 }) {
@@ -48,6 +52,29 @@ export function WindowControls({
           <Icon d="M6 12.5h12v2H6z" />
         </button>
       )}
+      {onMaximize ? (
+        maximized ? (
+          <button
+            type="button"
+            onClick={onRestore}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            title="Restore"
+            aria-label="Restore"
+          >
+            <Icon d="M7 7h10v10H7z" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onMaximize}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            title="Maximize"
+            aria-label="Maximize"
+          >
+            <Icon d="M5 5h14v14H5z M7 7v10h10V7z" />
+          </button>
+        )
+      ) : null}
       <button
         type="button"
         onClick={onClose}

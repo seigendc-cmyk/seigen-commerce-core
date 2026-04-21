@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -68,7 +68,7 @@ export function PurchasingPage() {
       <DashboardTopBar title="Purchasing" subtitle="Create local purchase orders and add items with expected cost." />
       <div className="flex-1 space-y-8 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/dashboard/inventory" className="text-sm font-semibold text-brand-orange hover:underline">
+          <Link href="/dashboard/inventory" className="text-sm font-semibold text-teal-600 hover:underline">
             ← Back to inventory
           </Link>
           <Link
@@ -114,7 +114,7 @@ export function PurchasingPage() {
                       name="new-po-terms"
                       checked={poPaymentTerms === "cash"}
                       onChange={() => setPoPaymentTerms("cash")}
-                      className="accent-brand-orange"
+                      className="accent-teal-600"
                     />
                     Cash — pay from COGS Reserves when ordered
                   </label>
@@ -124,7 +124,7 @@ export function PurchasingPage() {
                       name="new-po-terms"
                       checked={poPaymentTerms === "credit"}
                       onChange={() => setPoPaymentTerms("credit")}
-                      className="accent-brand-orange"
+                      className="accent-teal-600"
                     />
                     Credit — post to supplier creditor (Financial → Creditors)
                   </label>
@@ -142,7 +142,7 @@ export function PurchasingPage() {
                     refresh();
                     setActivePoId(po.id);
                   }}
-                  className="w-full rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:opacity-50"
+                  className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
                 >
                   Create PO
                 </button>
@@ -166,7 +166,7 @@ export function PurchasingPage() {
                         className={[
                           "w-full rounded-xl border px-3 py-2 text-left transition-colors",
                           active
-                            ? "border-brand-orange/50 bg-white/10"
+                            ? "border-teal-500/50 bg-white/10"
                             : "border-white/10 bg-white/[0.04] hover:border-white/20",
                         ].join(" ")}
                       >
@@ -216,7 +216,7 @@ export function PurchasingPage() {
                             PurchasingService.updatePaymentTerms(activePo.id, "cash");
                             refresh();
                           }}
-                          className="accent-brand-orange"
+                          className="accent-teal-600"
                         />
                         Cash (COGS Reserves)
                       </label>
@@ -229,7 +229,7 @@ export function PurchasingPage() {
                             PurchasingService.updatePaymentTerms(activePo.id, "credit");
                             refresh();
                           }}
-                          className="accent-brand-orange"
+                          className="accent-teal-600"
                         />
                         Credit (supplier AP)
                       </label>
@@ -266,7 +266,7 @@ export function PurchasingPage() {
                           setAddItemProductId("");
                           refresh();
                         }}
-                        className="w-full rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:opacity-50"
+                        className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
                       >
                         Add
                       </button>
@@ -304,7 +304,7 @@ export function PurchasingPage() {
                                     <button
                                       type="button"
                                       aria-label="Decrease quantity"
-                                      className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-brand-orange"
+                                      className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-teal-500"
                                       onClick={() => {
                                         PurchasingService.updateItem(activePo.id, it.id, {
                                           orderedQty: Math.max(0, it.orderedQty - 1),
@@ -333,7 +333,7 @@ export function PurchasingPage() {
                                     <button
                                       type="button"
                                       aria-label="Increase quantity"
-                                      className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-brand-orange"
+                                      className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-teal-500"
                                       onClick={() => {
                                         PurchasingService.updateItem(activePo.id, it.id, {
                                           orderedQty: it.orderedQty + 1,
@@ -417,7 +417,7 @@ export function PurchasingPage() {
                           setOrderMessage(null);
                           refresh();
                         }}
-                        className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+                        className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
                       >
                         Mark ordered
                       </button>

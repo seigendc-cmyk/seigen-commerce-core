@@ -104,7 +104,12 @@ export const PurchasingService = {
   }): PurchaseOrder {
     const db = getPurchasingDb();
     const ts = nowIso();
-    const branchId = input.branchId ?? InventoryRepo.getDefaultTradingBranch()?.id ?? InventoryRepo.getDefaultBranch().id;
+    // New onboarding rule: POs default to the receiving Warehouse (non-selling) unless explicitly scoped.
+    const branchId =
+      input.branchId ??
+      InventoryRepo.getDefaultWarehouseBranch()?.id ??
+      InventoryRepo.getDefaultTradingBranch()?.id ??
+      InventoryRepo.getDefaultBranch().id;
     const po: PurchaseOrder = {
       id: uid("po"),
       supplierId: input.supplierId,

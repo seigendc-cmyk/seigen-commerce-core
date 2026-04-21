@@ -69,7 +69,7 @@ export function EditProductPage({ productId }: Props) {
       <div className="flex-1 px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-3xl space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <Link href="/dashboard/inventory" className="text-sm font-semibold text-brand-orange hover:underline">
+            <Link href="/dashboard/inventory" className="text-sm font-semibold text-teal-600 hover:underline">
               ← Back to inventory
             </Link>
           </div>

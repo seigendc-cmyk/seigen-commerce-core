@@ -132,7 +132,7 @@ export function JournalModal({
         <div className="border-b border-slate-200 px-6 py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-orange">General journal</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-600">General journal</p>
               <h2 className={finLight.title}>Journal entry</h2>
               <p className={finLight.subtitle}>
                 Balanced double-entry. Use <span className="font-mono">{COA_CASH_CODE}</span> or{" "}
@@ -279,7 +279,7 @@ export function JournalModal({
             </div>
             <button
               type="button"
-              className="mt-3 text-sm font-semibold text-brand-orange hover:underline"
+              className="mt-3 text-sm font-semibold text-teal-600 hover:underline"
               onClick={() => setLines([...lines, emptyLine()])}
             >
               + Add line

@@ -17,14 +17,14 @@ export function ExecutiveShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
 
   return (
-    <div className="executive-core-bg flex min-h-dvh">
+    <div data-vendor-app className="executive-core-bg flex min-h-dvh">
       <aside className="executive-panel hidden w-72 shrink-0 border-r border-white/10 p-5 lg:flex lg:flex-col">
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-xs font-semibold tracking-wider text-neutral-400">seiGEN</p>
             <p className="text-lg font-semibold text-white">Executive</p>
           </div>
-          <span className="rounded-full border border-brand-orange/25 bg-brand-orange/10 px-2 py-1 text-[10px] font-semibold text-brand-orange">
+          <span className="rounded-full border border-teal-500/35 bg-teal-500/15 px-2 py-1 text-[10px] font-semibold text-teal-200">
             governance
           </span>
         </div>
@@ -39,7 +39,7 @@ export function ExecutiveShell({ children }: { children: ReactNode }) {
                 className={[
                   "flex items-center justify-between rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
                   active
-                    ? "border-brand-orange/45 bg-brand-orange/10 text-white"
+                    ? "border-teal-500/45 bg-teal-600/10 text-white"
                     : "border-white/18 bg-white/[0.06] text-neutral-100 hover:border-white/28 hover:bg-white/[0.09] hover:text-white",
                 ].join(" ")}
               >

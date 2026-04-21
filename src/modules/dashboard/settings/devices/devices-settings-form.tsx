@@ -70,7 +70,7 @@ export function DevicesSettingsForm() {
         <button
           type="button"
           onClick={addDevice}
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
         >
           Add device
         </button>
@@ -98,7 +98,7 @@ export function DevicesSettingsForm() {
                     <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-200">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 accent-brand-orange"
+                        className="h-4 w-4 accent-teal-600"
                         checked={d.enabled}
                         onChange={(e) => updateDevice(d.id, { enabled: e.target.checked })}
                       />
@@ -228,7 +228,7 @@ export function DevicesSettingsForm() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
         >
           Save draft
         </button>

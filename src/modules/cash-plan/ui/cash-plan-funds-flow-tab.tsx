@@ -198,7 +198,7 @@ export function CashPlanFundsFlowTab({
                       {isProj ? (
                         <input
                           inputMode="decimal"
-                          className="w-28 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-right font-mono text-sm text-white outline-none focus:border-brand-orange/60"
+                          className="w-28 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-right font-mono text-sm text-white outline-none focus:border-teal-500/60"
                           value={v ? String(v) : ""}
                           placeholder="0"
                           onChange={(e) => {
@@ -280,7 +280,7 @@ export function CashPlanFundsFlowTab({
           </button>
           <button
             type="button"
-            className="rounded-lg border border-brand-orange/50 bg-brand-orange/15 px-4 py-2 text-sm font-semibold text-brand-orange hover:bg-brand-orange/25"
+            className="rounded-lg border border-teal-500/50 bg-teal-600/15 px-4 py-2 text-sm font-semibold text-teal-600 hover:bg-teal-600/25"
             onClick={() => void downloadFundsFlowSheetPdf(sheetReportPayload)}
           >
             Download PDF
@@ -342,7 +342,7 @@ export function CashPlanFundsFlowTab({
           </button>
           <button
             type="button"
-            className="rounded-lg border border-brand-orange/50 bg-brand-orange/15 px-4 py-2 text-sm font-semibold text-brand-orange hover:bg-brand-orange/25"
+            className="rounded-lg border border-teal-500/50 bg-teal-600/15 px-4 py-2 text-sm font-semibold text-teal-600 hover:bg-teal-600/25"
             onClick={() => void downloadFundsFlowPdf(reportPayload)}
           >
             Download PDF (weekly projection)

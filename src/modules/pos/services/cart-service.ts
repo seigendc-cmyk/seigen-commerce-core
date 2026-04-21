@@ -107,3 +107,11 @@ export function removeLine(cart: Cart, productId: string): Cart {
   const items = cart.items.filter((i) => i.productId !== productId);
   return withSubtotal(items, cart.delivery);
 }
+
+export function overrideLineUnitPrice(cart: Cart, productId: string, unitPrice: number): Cart {
+  const p = roundMoney(Math.max(0, unitPrice));
+  const items = cart.items.map((it) =>
+    it.productId === productId ? { ...it, unitPrice: p, lineTotal: lineTotal(p, it.qty) } : it,
+  );
+  return withSubtotal(items, cart.delivery);
+}

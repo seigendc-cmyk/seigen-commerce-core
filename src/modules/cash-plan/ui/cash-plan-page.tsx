@@ -50,7 +50,7 @@ import {
 import { payCreditorsFromCogsReserve, type CreditorAllocation } from "@/modules/financial/services/creditor-payments-from-cogs";
 import {
   SCHEDULE_APPROVAL_QUEUE_UPDATED,
-  submitScheduleChangeRequest,
+  submitScheduleChangeRequestViaDesk,
 } from "@/modules/financial/services/schedule-change-queue";
 import {
   CREDITOR_SCHEDULE_UPDATED,
@@ -63,6 +63,7 @@ import {
   listOutstandingCreditors,
 } from "@/modules/financial/services/creditors-ledger";
 import { InventoryRepo } from "@/modules/inventory/services/inventory-repo";
+import { getActiveStaffId } from "@/modules/desk/services/sysadmin-bootstrap";
 
 function money(n: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -466,12 +467,15 @@ export function CashPlanPage() {
     (supplierId: string, supplierName: string, iso: string) => {
       const prev = effectiveDueDateKeyForSupplier(supplierId, creditorEntries) ?? undefined;
       if (isCreditorPaymentMissed(supplierId, creditorEntries)) {
-        const req = submitScheduleChangeRequest({
+        const req = submitScheduleChangeRequestViaDesk({
           kind: "creditor",
           entityId: supplierId,
           entityName: supplierName,
           proposedDateIso: iso,
           previousDateKey: prev,
+          branchId: InventoryRepo.getDefaultBranch().id,
+          initiatedByStaffId: getActiveStaffId() ?? "preset-sysadmin-staff",
+          initiatedByLabel: "Staff",
         });
         const b = InventoryRepo.getDefaultBranch();
         void emitCashPlanScheduleChangeRequestedBrainEvent({
@@ -499,12 +503,15 @@ export function CashPlanPage() {
     (customerId: string, customerName: string, iso: string) => {
       const prev = effectiveCollectionDateKeyForCustomer(customerId, debtorEntries) ?? undefined;
       if (isDebtorCollectionMissed(customerId, debtorEntries)) {
-        const req = submitScheduleChangeRequest({
+        const req = submitScheduleChangeRequestViaDesk({
           kind: "debtor",
           entityId: customerId,
           entityName: customerName,
           proposedDateIso: iso,
           previousDateKey: prev,
+          branchId: InventoryRepo.getDefaultBranch().id,
+          initiatedByStaffId: getActiveStaffId() ?? "preset-sysadmin-staff",
+          initiatedByLabel: "Staff",
         });
         const b = InventoryRepo.getDefaultBranch();
         void emitCashPlanScheduleChangeRequestedBrainEvent({
@@ -1091,12 +1098,15 @@ export function CashPlanPage() {
                   for (const r of outstanding) {
                     if (isCreditorPaymentMissed(r.supplierId, creditorEntries)) {
                       const prev = effectiveDueDateKeyForSupplier(r.supplierId, creditorEntries) ?? undefined;
-                      const req = submitScheduleChangeRequest({
+                      const req = submitScheduleChangeRequestViaDesk({
                         kind: "creditor",
                         entityId: r.supplierId,
                         entityName: r.supplierName,
                         proposedDateIso: iso,
                         previousDateKey: prev,
+                        branchId: InventoryRepo.getDefaultBranch().id,
+                        initiatedByStaffId: getActiveStaffId() ?? "preset-sysadmin-staff",
+                        initiatedByLabel: "Staff",
                       });
                       void emitCashPlanScheduleChangeRequestedBrainEvent({
                         requestId: req.id,
@@ -1239,12 +1249,15 @@ export function CashPlanPage() {
                   for (const r of outstandingDebtors) {
                     if (isDebtorCollectionMissed(r.customerId, debtorEntries)) {
                       const prev = effectiveCollectionDateKeyForCustomer(r.customerId, debtorEntries) ?? undefined;
-                      const req = submitScheduleChangeRequest({
+                      const req = submitScheduleChangeRequestViaDesk({
                         kind: "debtor",
                         entityId: r.customerId,
                         entityName: r.customerName,
                         proposedDateIso: iso,
                         previousDateKey: prev,
+                        branchId: InventoryRepo.getDefaultBranch().id,
+                        initiatedByStaffId: getActiveStaffId() ?? "preset-sysadmin-staff",
+                        initiatedByLabel: "Staff",
                       });
                       void emitCashPlanScheduleChangeRequestedBrainEvent({
                         requestId: req.id,

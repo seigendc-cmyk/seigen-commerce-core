@@ -150,7 +150,7 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
           <button
             type="button"
             onClick={() => router.push("/dashboard/inventory/add-product")}
-            className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+            className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-700"
           >
             Add
           </button>
@@ -164,7 +164,7 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
             <button
               type="button"
               onClick={resetColumns}
-              className="text-xs font-semibold text-brand-orange hover:underline"
+              className="text-xs font-semibold text-teal-300 hover:text-teal-200 hover:underline"
             >
               Reset to default
             </button>
@@ -219,7 +219,7 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
 
       {rows.length === 0 ? (
         <div className="vendor-empty mt-4 rounded-xl px-4 py-6 text-center text-sm leading-relaxed">
-          No products yet. Use <span className="font-semibold text-brand-orange">Add</span> to create your first item.
+          No products yet. Use <span className="font-semibold text-teal-300">Add</span> to create your first item.
         </div>
       ) : filtered.length === 0 ? (
         <div className="vendor-empty mt-4 rounded-xl px-4 py-5 text-center text-sm">
@@ -229,7 +229,7 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
       ) : (
         <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b-2 border-brand-orange bg-gradient-to-b from-brand-orange/30 via-brand-orange/15 to-black/40">
+            <thead className="border-b-2 border-teal-500/60 bg-gradient-to-b from-teal-600/35 via-teal-900/40 to-slate-950/90">
               <tr>
                 {visibleColumns.map((col) => (
                   <th
@@ -295,7 +295,7 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/dashboard/inventory/edit-product/${r.id}`}
-                      className="font-semibold text-brand-orange hover:underline"
+                      className="font-semibold text-teal-300 hover:text-teal-200 hover:underline"
                       onClick={(e) => e.stopPropagation()}
                     >
                       Edit

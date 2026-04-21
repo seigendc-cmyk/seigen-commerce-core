@@ -225,14 +225,14 @@ export function TaxSettingsForm() {
         <div className="flex flex-wrap gap-2">
           <button
             type="submit"
-            className="rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+            className="rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
           >
             Save
           </button>
           <button
             type="button"
             onClick={resetDefaults}
-            className="rounded-lg border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:border-brand-orange"
+            className="rounded-lg border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:border-teal-500"
           >
             Reset defaults
           </button>
@@ -249,13 +249,13 @@ export function TaxSettingsForm() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/dashboard/pos"
-            className="inline-flex rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-brand-orange"
+            className="inline-flex rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-teal-500"
           >
             Open POS →
           </Link>
           <Link
             href="/dashboard/inventory/purchasing"
-            className="inline-flex rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-brand-orange"
+            className="inline-flex rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-teal-500"
           >
             Purchasing →
           </Link>

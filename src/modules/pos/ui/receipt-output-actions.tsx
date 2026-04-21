@@ -52,14 +52,14 @@ export function ReceiptOutputActions({ sale, meta, className = "" }: Props) {
           type="button"
           disabled={busy !== null}
           onClick={() => void handlePrint()}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-brand-orange/50 hover:bg-white/10 disabled:opacity-50"
+          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10 disabled:opacity-50"
         >
           {busy === "print" ? "…" : "Print"}
         </button>
         <button
           type="button"
           onClick={() => downloadReceiptTextFile(sale, meta)}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-brand-orange/50 hover:bg-white/10"
+          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10"
         >
           .txt
         </button>
@@ -67,14 +67,14 @@ export function ReceiptOutputActions({ sale, meta, className = "" }: Props) {
           type="button"
           disabled={busy !== null}
           onClick={() => void handlePdf()}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-brand-orange/50 hover:bg-white/10 disabled:opacity-50"
+          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10 disabled:opacity-50"
         >
           {busy === "pdf" ? "…" : "PDF"}
         </button>
         <button
           type="button"
           onClick={() => downloadReceiptJsonFile(sale)}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-brand-orange/50 hover:bg-white/10"
+          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10"
         >
           JSON
         </button>

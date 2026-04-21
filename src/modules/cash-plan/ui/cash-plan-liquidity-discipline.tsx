@@ -26,7 +26,7 @@ export function CashPlanLiquidityDiscipline({ snap }: { snap: CashPlanSnapshot }
         </div>
         <Link
           href="/dashboard/financial?tab=cashbook"
-          className="shrink-0 self-start rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-brand-orange hover:border-brand-orange"
+          className="shrink-0 self-start rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-teal-600 hover:border-teal-500"
         >
           Open Financial →
         </Link>

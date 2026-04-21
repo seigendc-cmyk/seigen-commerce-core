@@ -161,7 +161,7 @@ export function CashPlanCashUtilizationTab({ dataVersion, snap }: { dataVersion:
         </button>
         <button
           type="button"
-          className="rounded-lg border border-brand-orange/50 bg-brand-orange/15 px-4 py-2 text-sm font-semibold text-brand-orange hover:bg-brand-orange/25"
+          className="rounded-lg border border-teal-500/50 bg-teal-600/15 px-4 py-2 text-sm font-semibold text-teal-600 hover:bg-teal-600/25"
           onClick={() => void downloadFundsFlowSheetPdf(payload)}
         >
           Download PDF

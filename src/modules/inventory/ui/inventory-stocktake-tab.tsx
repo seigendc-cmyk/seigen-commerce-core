@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { landUnitCostFromReadModel } from "@/modules/financial/lib/cogs-cost";
 import { InventoryRepo } from "@/modules/inventory/services/inventory-repo";
 import { listProductReadModels } from "@/modules/inventory/services/product-read-model";
+import { authzCheck } from "@/modules/authz/authz-actions";
 import {
   listStocktakeSessions,
   postStocktake,
@@ -71,7 +72,7 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
     return { items, totalAbs };
   }, [rows, counts]);
 
-  function submit() {
+  async function submit() {
     setMsg(null);
     if (!branch) return;
     const payload: { productId: string; countedQty: number }[] = [];
@@ -84,6 +85,15 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
     }
     setBusy(true);
     try {
+      const auth = await authzCheck("inventory.adjustment.post", {
+        scopeEntityType: "branch",
+        scopeEntityId: branch.id,
+        criticalReason: memo?.trim() ? `Stocktake post: ${memo.trim()}` : "Stocktake post",
+      });
+      if (!auth.allowed) {
+        setMsg(auth.reasonMessage);
+        return;
+      }
       const r = postStocktake({ branchId: branch.id, memo, counts: payload });
       if (!r.ok) {
         setMsg(r.error);
@@ -123,7 +133,7 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
         </p>
         <p className="mt-3 text-xs text-neutral-500">
           Branch: <span className="font-mono text-neutral-400">{branch.name}</span> ·{" "}
-          <Link href="/dashboard/financial" className="font-semibold text-brand-orange hover:underline">
+          <Link href="/dashboard/financial" className="font-semibold text-teal-600 hover:underline">
             Financial
           </Link>{" "}
           consumes the same local ledgers for reporting.
@@ -240,7 +250,7 @@ export function InventoryStocktakeTab({ onPosted }: { onPosted: () => void }) {
             type="button"
             disabled={busy || preview.items.length === 0}
             onClick={() => submit()}
-            className="rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:opacity-40"
+            className="rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-40"
           >
             {busy ? "Posting…" : "Post adjustments to stock & P&L ledger"}
           </button>

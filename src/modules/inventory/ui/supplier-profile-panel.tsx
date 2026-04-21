@@ -243,7 +243,7 @@ export function SupplierProfilePanel({ suppliers, onRefresh }: Props) {
                         className={[
                           "flex w-full flex-col rounded-xl border px-3 py-2.5 text-left transition-colors",
                           active
-                            ? "border-brand-orange/50 bg-brand-orange/10"
+                            ? "border-teal-500/50 bg-teal-600/10"
                             : "border-transparent bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.06]",
                         ].join(" ")}
                       >
@@ -294,7 +294,7 @@ export function SupplierProfilePanel({ suppliers, onRefresh }: Props) {
                   setSelectedId(sup.id);
                   onRefresh();
                 }}
-                className="w-full rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:opacity-50"
+                className="w-full rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 Add supplier
               </button>
@@ -329,14 +329,14 @@ export function SupplierProfilePanel({ suppliers, onRefresh }: Props) {
                 <button
                   type="button"
                   onClick={() => setLedgerOpen(true)}
-                  className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
                 >
                   View creditors ledger
                 </button>
                 <button
                   type="button"
                   onClick={printCreditorLedger}
-                  className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                  className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
                 >
                   Print ledger
                 </button>
@@ -467,7 +467,7 @@ export function SupplierProfilePanel({ suppliers, onRefresh }: Props) {
                   <button
                     type="button"
                     onClick={addContact}
-                    className="text-xs font-semibold text-brand-orange hover:underline"
+                    className="text-xs font-semibold text-teal-600 hover:underline"
                   >
                     + Add person
                   </button>
@@ -505,7 +505,7 @@ export function SupplierProfilePanel({ suppliers, onRefresh }: Props) {
                                   return { ...d, contactPersons: list };
                                 });
                               }}
-                              className="accent-brand-orange"
+                              className="accent-teal-600"
                             />
                             Primary
                           </label>
@@ -554,7 +554,7 @@ export function SupplierProfilePanel({ suppliers, onRefresh }: Props) {
                 <button
                   type="button"
                   onClick={saveProfile}
-                  className="rounded-lg bg-brand-orange px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                  className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
                 >
                   Save profile
                 </button>
@@ -580,14 +580,14 @@ export function SupplierProfilePanel({ suppliers, onRefresh }: Props) {
                 <button
                   type="button"
                   onClick={printCreditorLedger}
-                  className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                  className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
                 >
                   Print
                 </button>
                 <button
                   type="button"
                   onClick={() => setLedgerOpen(false)}
-                  className="rounded-lg border border-white/20 px-3 py-2 text-sm text-white hover:border-brand-orange"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-sm text-white hover:border-teal-500"
                 >
                   Close
                 </button>

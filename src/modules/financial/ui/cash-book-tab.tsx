@@ -59,21 +59,21 @@ export function CashBookTab({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
           onClick={() => setCheckOpen(true)}
         >
           Check writer
         </button>
         <button
           type="button"
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
           onClick={() => setReceiptOpen(true)}
         >
           Receipt
         </button>
         <button
           type="button"
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
           onClick={() => setJournalOpen(true)}
         >
           Journal
@@ -111,7 +111,7 @@ export function CashBookTab({
               />
               <button
                 type="button"
-                className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
                 onClick={() => {
                   const r = transferCashToCogsReserves(Number(cashInAmt), cashInMemo);
                   if (r.ok) {
@@ -189,7 +189,7 @@ export function CashBookTab({
               />
               <button
                 type="button"
-                className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
                 onClick={() => {
                   const r = transferBankToCogsReserves(Number(bankInAmt), bankInMemo);
                   if (r.ok) {
@@ -259,7 +259,7 @@ export function CashBookTab({
           />
           <button
             type="button"
-            className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange"
+            className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500"
             onClick={() => {
               const r = transferCogsReservesToCash(Number(cogsOutAmt), cogsOutMemo);
               if (r.ok) {

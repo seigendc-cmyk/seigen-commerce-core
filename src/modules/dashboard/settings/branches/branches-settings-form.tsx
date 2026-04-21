@@ -7,6 +7,7 @@ import { useVendorBranches } from "@/modules/dashboard/settings/branches/vendor-
 import { useVendorRoles } from "@/modules/dashboard/settings/roles/vendor-roles-context";
 import { displayStaffSummary } from "@/modules/dashboard/settings/staff/staff-types";
 import { useVendorStaff } from "@/modules/dashboard/settings/staff/vendor-staff-context";
+import { InventoryRepo, DEFAULT_WAREHOUSE_BRANCH_ID, branchKind } from "@/modules/inventory/services/inventory-repo";
 
 function formatLocationLine(b: ShopBranch): string {
   const parts = [b.suburb, b.city].map((x) => x.trim()).filter(Boolean);
@@ -49,7 +50,7 @@ export function BranchesSettingsForm() {
         <p className="mt-1 text-neutral-400">
           Each shop has its own name, address down to suburb, contacts, hours, and notes. Staff assigned here appear in
           the Staff tab by shop; assign roles under{" "}
-          <Link href="/dashboard/settings?tab=roles-permissions" className="text-brand-orange hover:underline">
+          <Link href="/dashboard/settings?tab=roles-permissions" className="text-teal-600 hover:underline">
             Roles &amp; permissions
           </Link>
           .
@@ -71,6 +72,8 @@ export function BranchesSettingsForm() {
         {branches.map((b, index) => {
           const isOpen = expandedBranchId === b.id;
           const attached = staffAtBranch(b.id);
+          const inv = InventoryRepo.getBranch(b.id);
+          const isWarehouse = inv ? branchKind(inv) === "warehouse" || inv.id === DEFAULT_WAREHOUSE_BRANCH_ID : b.id === DEFAULT_WAREHOUSE_BRANCH_ID;
 
           return (
             <div key={b.id} className="vendor-panel rounded-2xl">
@@ -85,11 +88,16 @@ export function BranchesSettingsForm() {
                     <span className="min-w-0 truncate font-medium text-white">{branchCardTitle(b, index)}</span>
                     <span className="shrink-0 text-xs text-neutral-500">· {formatLocationLine(b)}</span>
                     <span className="shrink-0 text-xs text-neutral-500">· {attached.length} staff</span>
+                    {isWarehouse ? (
+                      <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                        Default Warehouse (non-selling)
+                      </span>
+                    ) : null}
                     <span className="shrink-0 text-neutral-500" aria-hidden>
                       ▸
                     </span>
                   </button>
-                  {branches.length > 1 ? (
+                  {branches.length > 1 && !isWarehouse ? (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -120,7 +128,7 @@ export function BranchesSettingsForm() {
                           ▾
                         </span>
                       </button>
-                      {branches.length > 1 ? (
+                      {branches.length > 1 && !isWarehouse ? (
                         <button
                           type="button"
                           onClick={() => removeBranch(b.id)}
@@ -133,6 +141,11 @@ export function BranchesSettingsForm() {
                   </div>
 
                   <div className="space-y-6 p-6 pt-4">
+                    {isWarehouse ? (
+                      <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                        <strong className="text-amber-50">Default Warehouse.</strong> This store is the receiving location for goods and cannot ring sales (no POS cart). Transfer stock to trading shops/agent stalls for POS.
+                      </div>
+                    ) : null}
                     <div>
                       <h3 className="text-base font-semibold text-white">Shop name</h3>
                       <div className="mt-4 max-w-xl">
@@ -305,7 +318,7 @@ export function BranchesSettingsForm() {
                                   type="checkbox"
                                   checked={h.closed}
                                   onChange={(e) => updateBranchHours(b.id, day as Weekday, { closed: e.target.checked })}
-                                  className="h-4 w-4 accent-brand-orange"
+                                  className="h-4 w-4 accent-teal-600"
                                 />
                                 Closed
                               </label>
@@ -348,7 +361,7 @@ export function BranchesSettingsForm() {
                       <h3 className="text-base font-semibold text-white">Team at this shop</h3>
                       <p className="mt-1 text-sm text-neutral-400">
                         Pulled from the Staff tab where each person&apos;s shop matches this location. Roles come from{" "}
-                        <Link href="/dashboard/settings?tab=roles-permissions" className="text-brand-orange hover:underline">
+                        <Link href="/dashboard/settings?tab=roles-permissions" className="text-teal-600 hover:underline">
                           Roles &amp; permissions
                         </Link>
                         .
@@ -356,7 +369,7 @@ export function BranchesSettingsForm() {
                       {attached.length === 0 ? (
                         <p className="mt-3 rounded-lg border border-dashed border-white/15 bg-neutral-900/30 px-4 py-6 text-center text-sm text-neutral-500">
                           No staff linked yet — open the{" "}
-                          <Link href="/dashboard/settings?tab=staff" className="text-brand-orange hover:underline">
+                          <Link href="/dashboard/settings?tab=staff" className="text-teal-600 hover:underline">
                             Staff
                           </Link>{" "}
                           tab and assign this shop.
@@ -400,7 +413,7 @@ export function BranchesSettingsForm() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
         >
           Save draft
         </button>

@@ -48,7 +48,7 @@ export function SectorMultiCombo({ sectors, value, onChange }: Props) {
           return (
             <span
               key={id}
-              className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/40 bg-brand-orange/15 px-3 py-1 text-sm text-neutral-100"
+              className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/40 bg-teal-600/15 px-3 py-1 text-sm text-neutral-100"
             >
               <span>{s?.label ?? id}</span>
               <button

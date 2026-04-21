@@ -28,6 +28,14 @@ export const BrainEventTypes = {
   CASHPLAN_RESERVE_APPROVAL_REQUESTED: "cashplan.reserve.approval.requested",
   /** Reserve approval queue item approved or rejected. */
   CASHPLAN_RESERVE_APPROVAL_RESOLVED: "cashplan.reserve.approval.resolved",
+  /** Consignment agreement submitted for approval (no operational provisioning until approved). */
+  CONSIGNMENT_AGREEMENT_APPROVAL_REQUESTED: "consignment.agreement.approval.requested",
+  /** Consignment agreement approval resolved (approved/rejected). */
+  CONSIGNMENT_AGREEMENT_APPROVAL_RESOLVED: "consignment.agreement.approval.resolved",
+  /** One-time agent access code issued for provisioning (do not store raw code in Brain). */
+  CONSIGNMENT_AGENT_ACCESS_CODE_ISSUED: "consignment.agent.access_code.issued",
+  /** One-time agent access code redeemed/claimed (do not store raw code in Brain). */
+  CONSIGNMENT_AGENT_ACCESS_CODE_REDEEMED: "consignment.agent.access_code.redeemed",
 } as const;
 
 export type BrainEventType = (typeof BrainEventTypes)[keyof typeof BrainEventTypes];

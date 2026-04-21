@@ -133,7 +133,7 @@ export function ReportWriterSettingsForm() {
               key={t.id}
               className="flex flex-col rounded-xl border border-white/12 bg-white/[0.04] p-4"
             >
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-brand-orange/90">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-600/90">
                 {t.category}
               </span>
               <span className="mt-1 font-medium text-white">{t.name}</span>
@@ -155,7 +155,7 @@ export function ReportWriterSettingsForm() {
         <button
           type="button"
           onClick={addBlank}
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
         >
           New blank report
         </button>
@@ -187,21 +187,21 @@ export function ReportWriterSettingsForm() {
                     <button
                       type="button"
                       onClick={() => runPlaceholder(r.name)}
-                      className="rounded-lg bg-brand-orange/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-orange"
+                      className="rounded-lg bg-teal-600/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-600"
                     >
                       Run
                     </button>
                     <button
                       type="button"
                       onClick={() => exportPlaceholder(r.name, "spreadsheet")}
-                      className="rounded-lg border border-white/18 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-brand-orange hover:text-white"
+                      className="rounded-lg border border-white/18 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-teal-500 hover:text-white"
                     >
                       Spreadsheet
                     </button>
                     <button
                       type="button"
                       onClick={() => exportPlaceholder(r.name, "pdf")}
-                      className="rounded-lg border border-white/18 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-brand-orange hover:text-white"
+                      className="rounded-lg border border-white/18 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-teal-500 hover:text-white"
                     >
                       PDF
                     </button>
@@ -277,7 +277,7 @@ export function ReportWriterSettingsForm() {
                           >
                             <input
                               type="checkbox"
-                              className="h-3.5 w-3.5 accent-brand-orange"
+                              className="h-3.5 w-3.5 accent-teal-600"
                               checked={r.columns.includes(col)}
                               onChange={(e) => toggleColumn(r.id, col, e.target.checked)}
                             />
@@ -330,7 +330,7 @@ export function ReportWriterSettingsForm() {
                         <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-200">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 accent-brand-orange"
+                            className="h-4 w-4 accent-teal-600"
                             checked={r.exportXlsx}
                             onChange={(e) => upsertLayout(r.id, { exportXlsx: e.target.checked })}
                           />
@@ -339,7 +339,7 @@ export function ReportWriterSettingsForm() {
                         <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-200">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 accent-brand-orange"
+                            className="h-4 w-4 accent-teal-600"
                             checked={r.exportPdf}
                             onChange={(e) => upsertLayout(r.id, { exportPdf: e.target.checked })}
                           />
@@ -368,7 +368,7 @@ export function ReportWriterSettingsForm() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
         >
           Save layouts
         </button>

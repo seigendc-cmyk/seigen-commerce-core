@@ -59,7 +59,7 @@ export function ProductBomSection({
             <button
               type="button"
               onClick={() => onAssemblyChange([emptyLine()])}
-              className="font-medium text-brand-orange hover:underline"
+              className="font-medium text-teal-600 hover:underline"
             >
               Add component row
             </button>
@@ -118,7 +118,7 @@ export function ProductBomSection({
         <button
           type="button"
           onClick={() => onAssemblyChange([...assemblyLines, emptyLine()])}
-          className="mt-2 text-sm font-medium text-brand-orange hover:underline"
+          className="mt-2 text-sm font-medium text-teal-600 hover:underline"
         >
           + Add component
         </button>
@@ -136,7 +136,7 @@ export function ProductBomSection({
             <button
               type="button"
               onClick={() => onDisassemblyChange([emptyLine()])}
-              className="font-medium text-brand-orange hover:underline"
+              className="font-medium text-teal-600 hover:underline"
             >
               Add output row
             </button>
@@ -195,7 +195,7 @@ export function ProductBomSection({
         <button
           type="button"
           onClick={() => onDisassemblyChange([...disassemblyLines, emptyLine()])}
-          className="mt-2 text-sm font-medium text-brand-orange hover:underline"
+          className="mt-2 text-sm font-medium text-teal-600 hover:underline"
         >
           + Add output line
         </button>

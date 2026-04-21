@@ -46,7 +46,7 @@ export function PlanGatedModule({ area, children }: Props) {
           <div className="flex flex-wrap justify-center gap-3">
             <Link
               href="/plans"
-              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
             >
               View plans
             </Link>

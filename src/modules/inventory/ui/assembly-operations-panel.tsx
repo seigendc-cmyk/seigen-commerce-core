@@ -90,7 +90,7 @@ export function AssemblyOperationsPanel({ product, onDone }: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() => runBuild()}
-                className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:opacity-50"
+                className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 Build
               </button>

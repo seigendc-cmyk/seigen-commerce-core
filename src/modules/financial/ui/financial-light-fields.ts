@@ -7,7 +7,7 @@ export const finLight = {
   subtitle: "mt-1 max-w-xl text-sm text-slate-600",
   label: "text-xs font-semibold uppercase tracking-wide text-slate-500",
   field:
-    "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/25",
+    "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/25",
   fieldMono: "font-mono",
   instrument:
     "relative overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white px-5 py-6",
@@ -16,6 +16,6 @@ export const finLight = {
     "mt-5 grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-slate-800",
   btnGhost: "rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-400",
   btnPrimary:
-    "rounded-lg bg-brand-orange px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-orange/20 hover:bg-brand-orange-hover disabled:opacity-40",
+    "rounded-lg bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/20 hover:bg-teal-700 disabled:opacity-40",
   err: "rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900",
 } as const;

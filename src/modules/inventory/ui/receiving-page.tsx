@@ -101,7 +101,7 @@ export function ReceivingPage() {
       <DashboardTopBar title="Receiving" subtitle="Receive goods against a purchase order and update local stock." />
       <div className="flex-1 space-y-8 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/dashboard/inventory" className="text-sm font-semibold text-brand-orange hover:underline">
+          <Link href="/dashboard/inventory" className="text-sm font-semibold text-teal-600 hover:underline">
             ← Back to inventory
           </Link>
           <Link href="/dashboard/inventory/purchasing" className="text-sm font-semibold text-neutral-200 hover:text-white">
@@ -294,7 +294,7 @@ export function ReceivingPage() {
                       setTimeout(() => setMessage(null), 5000);
                     }
                   }}
-                  className="rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                  className="rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
                 >
                   Save receipt + update stock
                 </button>
@@ -321,7 +321,7 @@ export function ReceivingPage() {
               <div className="flex flex-wrap gap-2 border-t border-white/10 px-5 py-4">
                 <button
                   type="button"
-                  className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                  className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
                   onClick={() => openReceivingVoucherPrint(voucherCtx)}
                 >
                   Print / Save as PDF

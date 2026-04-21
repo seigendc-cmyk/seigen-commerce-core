@@ -82,7 +82,7 @@ function NameFieldHint({
         <button
           type="button"
           onClick={onRequestVerification}
-          className="text-xs font-semibold text-brand-orange hover:underline"
+          className="text-xs font-semibold text-teal-600 hover:underline"
         >
           Request name verification
         </button>
@@ -374,7 +374,7 @@ export function BusinessProfileForm() {
           </div>
 
           {businessType === "registered" ? (
-            <div className="sm:col-span-2 rounded-xl border border-brand-orange/25 bg-brand-orange/5 p-4">
+            <div className="sm:col-span-2 rounded-xl border border-teal-500/25 bg-teal-600/5 p-4">
               <h3 className="text-sm font-semibold text-white">Registered entity details</h3>
               <p className="mt-1 text-xs text-neutral-400">
                 Official numbers and licences for compliance, invoicing, and BI reporting.
@@ -447,7 +447,7 @@ export function BusinessProfileForm() {
               type="checkbox"
               checked={vatRegistered}
               onChange={(e) => setVatRegistered(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-brand-orange focus:ring-brand-orange"
+              className="h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-teal-600 focus:ring-teal-500"
             />
             <label htmlFor="bp-vat" className="text-sm text-neutral-200">
               VAT / GST registered (where applicable)
@@ -719,7 +719,7 @@ export function BusinessProfileForm() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
         >
           Save draft
         </button>

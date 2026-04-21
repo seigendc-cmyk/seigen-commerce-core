@@ -7,6 +7,11 @@ import { useVendorRoles } from "@/modules/dashboard/settings/roles/vendor-roles-
 import { STAFF_ACTIVITY_CATEGORIES, displayStaffSummary } from "@/modules/dashboard/settings/staff/staff-types";
 import { useVendorStaff } from "@/modules/dashboard/settings/staff/vendor-staff-context";
 import { PassportImageSlot } from "@/modules/dashboard/settings/staff/passport-image-slot";
+import { computeDeskEligibilityForRole } from "@/modules/desk/services/desk-eligibility";
+import {
+  getStaffAccessCodeStatus,
+  issueInitialStaffAccessCode,
+} from "@/modules/dashboard/settings/staff/staff-access-codes";
 
 export type { StaffMember } from "@/modules/dashboard/settings/staff/staff-types";
 
@@ -29,6 +34,8 @@ export function StaffSettingsForm() {
   } = useVendorStaff();
 
   const [savedHint, setSavedHint] = useState<string | null>(null);
+  const [issuedCode, setIssuedCode] = useState<{ staffId: string; code: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,6 +139,73 @@ export function StaffSettingsForm() {
 
               {isOpen ? (
                 <div className="space-y-6 p-6 pt-4">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-white">Desk login code</h3>
+                        <p className="mt-1 text-sm text-neutral-400">
+                          SysAdmin issues an initial access code. Staff must change it on first login. SysAdmin can reset it anytime.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15"
+                          onClick={async () => {
+                            const r = await issueInitialStaffAccessCode({
+                              staffId: member.id,
+                              actorStaffId: "preset-sysadmin-staff",
+                            });
+                            setIssuedCode({ staffId: member.id, code: r.code });
+                            setCopied(false);
+                          }}
+                        >
+                          Issue / Reset code
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 text-xs text-neutral-400">
+                      Status:{" "}
+                      {(() => {
+                        const st = getStaffAccessCodeStatus(member.id);
+                        if (st.status === "missing") return <span className="text-amber-200">not issued</span>;
+                        return (
+                          <span className="text-emerald-200">
+                            issued · {st.mustChange ? "must change on first login" : "active"}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    {issuedCode && issuedCode.staffId === member.id ? (
+                      <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+                        <div className="text-sm font-semibold text-emerald-200">Initial access code (share securely)</div>
+                        <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-mono text-lg text-white">
+                          {issuedCode.code}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/15"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(issuedCode.code);
+                                setCopied(true);
+                                window.setTimeout(() => setCopied(false), 2000);
+                              } catch {
+                                // ignore
+                              }
+                            }}
+                          >
+                            Copy
+                          </button>
+                          {copied ? <span className="text-xs font-semibold text-emerald-200">Copied</span> : null}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
                   <div>
                     <h3 className="text-base font-semibold text-white">Personal details</h3>
                     <p className="mt-1 text-sm text-neutral-400">Legal name and identifiers for HR and payroll alignment.</p>
@@ -304,7 +378,7 @@ export function StaffSettingsForm() {
                       Assign a role from{" "}
                       <Link
                         href="/dashboard/settings?tab=roles-permissions"
-                        className="font-medium text-brand-orange underline-offset-2 hover:underline"
+                        className="font-medium text-teal-600 underline-offset-2 hover:underline"
                       >
                         Roles &amp; permissions
                       </Link>
@@ -339,6 +413,27 @@ export function StaffSettingsForm() {
                             {selectedRole.description.trim() ||
                               "No description yet — edit this role on Roles & permissions."}
                           </p>
+                        </div>
+                      ) : null}
+                      {selectedRole ? (
+                        <div className="sm:col-span-2 rounded-lg border border-white/10 bg-neutral-900/25 px-3 py-2 text-sm text-neutral-300">
+                          {(() => {
+                            const elig = computeDeskEligibilityForRole(selectedRole);
+                            return (
+                              <>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                  Desk eligibility
+                                </p>
+                                <p className="mt-1 text-neutral-200">
+                                  {elig.isTerminalOnly
+                                    ? "Terminal-only user — no management desk will be created."
+                                    : elig.hasDesk
+                                      ? `Desk will be created automatically (${elig.deskKind}).`
+                                      : "No management desk by default for this role."}
+                                </p>
+                              </>
+                            );
+                          })()}
                         </div>
                       ) : null}
                       <div className="sm:col-span-2">
@@ -634,7 +729,7 @@ export function StaffSettingsForm() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
         >
           Save draft
         </button>

@@ -76,12 +76,12 @@ export function PosSalesHistory({ refreshTrigger = 0, pinnedSale = null, onDismi
                     onClick={() => setSelectedId(isSelected ? null : s.id)}
                     className={`flex w-full flex-col rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
                       isSelected
-                        ? "border-brand-orange/50 bg-brand-orange/10"
+                        ? "border-teal-500/50 bg-teal-600/10"
                         : "border-white/5 bg-brand-charcoal/40 hover:border-white/15"
                     }`}
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-2 text-neutral-200">
-                      <span className="font-mono font-semibold text-brand-orange">{s.receiptNumber}</span>
+                      <span className="font-mono font-semibold text-teal-600">{s.receiptNumber}</span>
                       <span className="text-neutral-400">{formatWhen(s.createdAt)}</span>
                     </div>
                     <div className="mt-1 flex justify-between gap-2 text-neutral-300">

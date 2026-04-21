@@ -106,7 +106,7 @@ export function CoaSettingsForm() {
         <button
           type="button"
           onClick={addTopLevel}
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
         >
           Add top-level account
         </button>
@@ -141,7 +141,7 @@ export function CoaSettingsForm() {
                   className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/[0.06]"
                 >
                   <span className="min-w-0 text-sm text-white">
-                    <span className="font-mono text-xs text-brand-orange/95">{r.code.trim() || "—"}</span>
+                    <span className="font-mono text-xs text-teal-600/95">{r.code.trim() || "—"}</span>
                     <span className="mx-2 text-neutral-500">·</span>
                     <span className="font-medium">{r.name.trim() || "Untitled"}</span>
                     <span className="ml-2 text-xs text-neutral-500">
@@ -245,7 +245,7 @@ export function CoaSettingsForm() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
         >
           Save draft
         </button>

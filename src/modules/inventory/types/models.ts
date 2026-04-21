@@ -25,10 +25,11 @@ export type ProductBom = {
 };
 
 /**
- * `head_office` — Admin / HO: not counted as a billable shop, and does not ring sales or move stock from this profile.
- * `trading` — retail / warehouse / counter that sells and holds inventory (default when omitted for legacy data).
+ * `head_office` — Admin / HO: not counted as a billable shop, and does not ring sales or hold stock.
+ * `warehouse` — Default receiving store: can hold stock and receive goods, but cannot ring sales / POS cart.
+ * `trading` — Live shop / counter / agent stall that sells and holds inventory (default when omitted for legacy data).
  */
-export type BranchKind = "trading" | "head_office";
+export type BranchKind = "trading" | "warehouse" | "head_office";
 
 export type Branch = {
   id: Id;

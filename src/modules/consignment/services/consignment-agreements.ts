@@ -16,6 +16,8 @@ export type ConsignmentAgreement = {
   agentName: string;
   /** Premium percent added to invoice-cost-derived base price for POS at the stall. */
   premiumPercent: number;
+  /** Optional attached A4 contract document id. */
+  documentId?: string;
   isActive: boolean;
   notes: string;
 };
@@ -66,6 +68,7 @@ export function createConsignmentAgreement(input: {
   agentName: string;
   premiumPercent: number;
   notes?: string;
+  documentId?: string;
 }): ConsignmentAgreement {
   const principal = InventoryRepo.getBranch(input.principalBranchId) ?? InventoryRepo.getDefaultBranch();
   const agentName = input.agentName.trim() || "Agent";
@@ -80,6 +83,52 @@ export function createConsignmentAgreement(input: {
     agentId: `agent_${stall.id}`,
     agentName,
     premiumPercent: round2(Math.max(0, Number(input.premiumPercent) || 0)),
+    documentId: input.documentId,
+    isActive: true,
+    notes: input.notes?.trim() || "",
+  };
+  const db = getDb();
+  db.agreements.push(row);
+  setDb(db);
+  return row;
+}
+
+/**
+ * Create an active agreement for an already-provisioned stall branch.
+ * Used by approval flows to avoid provisioning before authorization.
+ */
+export function createConsignmentAgreementForExistingStall(input: {
+  principalBranchId: Id;
+  stallBranchId: Id;
+  agentName: string;
+  premiumPercent: number;
+  notes?: string;
+  documentId?: string;
+}): ConsignmentAgreement {
+  const principal = InventoryRepo.getBranch(input.principalBranchId) ?? InventoryRepo.getDefaultBranch();
+  const stall = InventoryRepo.getBranch(input.stallBranchId);
+  if (!stall) {
+    // Fail safe: provision a stall if the requested one doesn't exist.
+    return createConsignmentAgreement({
+      principalBranchId: principal.id,
+      agentName: input.agentName,
+      premiumPercent: input.premiumPercent,
+      notes: input.notes,
+      documentId: input.documentId,
+    });
+  }
+  const agentName = input.agentName.trim() || "Agent";
+  const ts = nowIso();
+  const row: ConsignmentAgreement = {
+    id: uid(),
+    createdAt: ts,
+    updatedAt: ts,
+    principalBranchId: principal.id,
+    stallBranchId: stall.id,
+    agentId: `agent_${stall.id}`,
+    agentName,
+    premiumPercent: round2(Math.max(0, Number(input.premiumPercent) || 0)),
+    documentId: input.documentId,
     isActive: true,
     notes: input.notes?.trim() || "",
   };
@@ -104,5 +153,27 @@ export function updateConsignmentAgreement(id: string, patch: Partial<Pick<Consi
   };
   db.agreements[idx] = next;
   setDb(db);
+}
+
+/**
+ * Deletes an agent stall by deactivating the agreement and deleting the stall branch (only if safe).
+ * This is intended for cleaning up unwanted demo/unused stalls.
+ */
+export function deleteConsignmentAgentStall(input: {
+  agreementId: string;
+}): { ok: true } | { ok: false; error: string } {
+  const db = getDb();
+  const idx = db.agreements.findIndex((a) => a.id === input.agreementId);
+  if (idx < 0) return { ok: false, error: "Agreement not found." };
+  const a = db.agreements[idx]!;
+
+  // Must delete the stall branch first (stock guard inside InventoryRepo).
+  const del = InventoryRepo.deleteBranch(a.stallBranchId);
+  if (!del.ok) return del;
+
+  // Deactivate agreement and keep as audit record (do not hard-delete agreement row).
+  db.agreements[idx] = { ...a, isActive: false, updatedAt: nowIso(), notes: a.notes };
+  setDb(db);
+  return { ok: true };
 }
 

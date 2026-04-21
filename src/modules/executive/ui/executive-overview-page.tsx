@@ -88,7 +88,7 @@ export function ExecutiveOverviewPage() {
             </div>
             <p className="mt-3 text-sm text-neutral-300">
               Latest receipt:{" "}
-              <span className="font-mono text-brand-orange">{snap.pos.latestReceiptNumber ?? "—"}</span>
+              <span className="font-mono text-teal-600">{snap.pos.latestReceiptNumber ?? "—"}</span>
             </p>
           </div>
 
@@ -143,7 +143,7 @@ export function ExecutiveOverviewPage() {
                     {snap.plan.includedModules.map((m) => (
                       <span
                         key={m}
-                        className="rounded-full border border-brand-orange/30 bg-brand-orange/10 px-2.5 py-1 text-xs font-semibold text-neutral-100"
+                        className="rounded-full border border-teal-500/30 bg-teal-600/10 px-2.5 py-1 text-xs font-semibold text-neutral-100"
                         title={PLAN_MODULE_INFO[m]?.blurb ?? m}
                       >
                         {PLAN_MODULE_INFO[m]?.label ?? m}
@@ -241,7 +241,7 @@ export function ExecutiveOverviewPage() {
                 <p className="mt-2 text-2xl font-semibold text-white">{money(snap.pos.totalSalesValue)}</p>
                 <p className="mt-1 text-sm text-neutral-400">
                   Latest receipt:{" "}
-                  <span className="font-mono text-brand-orange">{snap.pos.latestReceiptNumber ?? "—"}</span>
+                  <span className="font-mono text-teal-600">{snap.pos.latestReceiptNumber ?? "—"}</span>
                 </p>
               </div>
             </div>

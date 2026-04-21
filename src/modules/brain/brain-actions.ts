@@ -319,6 +319,255 @@ export async function emitCashPlanScheduleChangeResolvedBrainEvent(input: {
   return { ok: true, id: data.id as string };
 }
 
+export async function emitConsignmentAgreementApprovalRequestedBrainEvent(input: {
+  requestId: string;
+  documentId: string;
+  agentName: string;
+  agentEmail: string;
+  principalBranchId: string;
+  premiumPercent: number;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    requestId: input.requestId,
+    documentId: input.documentId,
+    agentName: input.agentName,
+    agentEmail: input.agentEmail,
+    principalBranchId: input.principalBranchId,
+    premiumPercent: input.premiumPercent,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CONSIGNMENT_AGREEMENT_APPROVAL_REQUESTED,
+      module: "consignment",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.principalBranchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "consignment_agreement_request",
+      entity_id: input.requestId,
+      occurred_at: new Date().toISOString(),
+      severity: "notice" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitConsignmentAgreementApprovalResolvedBrainEvent(input: {
+  requestId: string;
+  documentId: string;
+  resolution: "approved" | "rejected";
+  principalBranchId: string;
+  agreementId?: string;
+  stallBranchId?: string;
+  agentUserId?: string;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    requestId: input.requestId,
+    documentId: input.documentId,
+    resolution: input.resolution,
+    agreementId: input.agreementId ?? null,
+    stallBranchId: input.stallBranchId ?? null,
+    agentUserId: input.agentUserId ?? null,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CONSIGNMENT_AGREEMENT_APPROVAL_RESOLVED,
+      module: "consignment",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.principalBranchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "consignment_agreement_request",
+      entity_id: input.requestId,
+      occurred_at: new Date().toISOString(),
+      severity: (input.resolution === "approved" ? "notice" : "info") as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitConsignmentAgentAccessCodeIssuedBrainEvent(input: {
+  provisioningId: string;
+  accessCodeId: string;
+  principalBranchId: string;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    provisioningId: input.provisioningId,
+    accessCodeId: input.accessCodeId,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CONSIGNMENT_AGENT_ACCESS_CODE_ISSUED,
+      module: "consignment",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.principalBranchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "consignment_agent_access_code",
+      entity_id: input.accessCodeId,
+      occurred_at: new Date().toISOString(),
+      severity: "notice" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitConsignmentAgentAccessCodeRedeemedBrainEvent(input: {
+  provisioningId: string;
+  accessCodeId: string;
+  principalBranchId: string;
+  agentUserId: string;
+  correlationId: string;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const payload = {
+    provisioningId: input.provisioningId,
+    accessCodeId: input.accessCodeId,
+    agentUserId: input.agentUserId,
+  };
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.CONSIGNMENT_AGENT_ACCESS_CODE_REDEEMED,
+      module: "consignment",
+      tenant_id: membership.tenant_id as string,
+      branch_id: input.principalBranchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "consignment_agent_access_code",
+      entity_id: input.accessCodeId,
+      occurred_at: new Date().toISOString(),
+      severity: "info" as BrainEventSeverity,
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, id: data.id as string };
+}
+
 export async function emitCashPlanReserveCreatedBrainEvent(input: {
   reserveId: string;
   name: string;

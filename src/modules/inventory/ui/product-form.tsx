@@ -390,7 +390,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                 type="checkbox"
                 checked={active}
                 onChange={(e) => setActive(e.target.checked)}
-                className="h-4 w-4 accent-brand-orange"
+                className="h-4 w-4 accent-teal-600"
               />
               Active
             </label>
@@ -399,7 +399,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                 type="checkbox"
                 checked={forSale}
                 onChange={(e) => setForSale(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-brand-orange"
+                className="mt-0.5 h-4 w-4 accent-teal-600"
               />
               <span>
                 Available for sale at POS
@@ -583,7 +583,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
               type="checkbox"
               checked={taxable}
               onChange={(e) => setTaxable(e.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-brand-orange"
+              className="mt-0.5 h-4 w-4 accent-teal-600"
             />
             <span>
               Item is taxable
@@ -745,7 +745,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                 <div key={f.key} className={cell}>
                   <label className="block text-sm font-medium text-neutral-200" htmlFor={`sf-${f.key}`}>
                     {f.label}
-                    {f.required ? <span className="text-brand-orange"> *</span> : null}
+                    {f.required ? <span className="text-teal-600"> *</span> : null}
                   </label>
                   <select
                     id={`sf-${f.key}`}
@@ -772,7 +772,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                     type="checkbox"
                     checked={Boolean(value)}
                     onChange={(e) => setSectorField(f.key, e.target.checked)}
-                    className="h-4 w-4 accent-brand-orange"
+                    className="h-4 w-4 accent-teal-600"
                   />
                   {f.label}
                 </label>
@@ -785,7 +785,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                 <div key={f.key} className={cell}>
                   <label className="block text-sm font-medium text-neutral-200" htmlFor={`sf-${f.key}`}>
                     {f.label}
-                    {f.required ? <span className="text-brand-orange"> *</span> : null}
+                    {f.required ? <span className="text-teal-600"> *</span> : null}
                   </label>
                   <input
                     id={`sf-${f.key}`}
@@ -813,7 +813,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                 <div key={f.key} className={cell}>
                   <label className="block text-sm font-medium text-neutral-200" htmlFor={`sf-${f.key}`}>
                     {f.label}
-                    {f.required ? <span className="text-brand-orange"> *</span> : null}
+                    {f.required ? <span className="text-teal-600"> *</span> : null}
                   </label>
                   <input
                     id={`sf-${f.key}`}
@@ -832,7 +832,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                 <div key={f.key} className={cell}>
                   <label className="block text-sm font-medium text-neutral-200" htmlFor={`sf-${f.key}`}>
                     {f.label}
-                    {f.required ? <span className="text-brand-orange"> *</span> : null}
+                    {f.required ? <span className="text-teal-600"> *</span> : null}
                   </label>
                   <textarea
                     id={`sf-${f.key}`}
@@ -851,7 +851,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
               <div key={f.key} className={cell}>
                 <label className="block text-sm font-medium text-neutral-200" htmlFor={`sf-${f.key}`}>
                   {f.label}
-                  {f.required ? <span className="text-brand-orange"> *</span> : null}
+                  {f.required ? <span className="text-teal-600"> *</span> : null}
                 </label>
                 <input
                   id={`sf-${f.key}`}
@@ -880,7 +880,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
             type="checkbox"
             checked={flagExternalIdeliver}
             onChange={(e) => setFlagExternalIdeliver(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-brand-orange"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-teal-600"
           />
           <span className="text-sm leading-relaxed text-neutral-200">
             <span className="font-medium text-white">External iDeliver provider may fulfil this product</span>
@@ -900,7 +900,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
               {images.length} / {MAX_PRODUCT_IMAGES}
             </p>
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600">
             <input
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/avif,image/tiff,.jpg,.jpeg,.png,.gif,.webp,.bmp,.avif,.tif,.tiff,.heic,.heif"
@@ -960,7 +960,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                     type="button"
                     onClick={() => moveImage(img.id, -1)}
                     disabled={idx === 0}
-                    className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-brand-orange disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     ↑
                   </button>
@@ -968,7 +968,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
                     type="button"
                     onClick={() => moveImage(img.id, 1)}
                     disabled={idx === images.length - 1}
-                    className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-brand-orange disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded border border-white/20 px-2 py-1 text-xs text-white hover:border-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     ↓
                   </button>
@@ -983,7 +983,7 @@ export function ProductForm({ initial, onSubmit, submitLabel = "Save product" }:
         <button
           type="submit"
           disabled={imagesStillLoading || isAddingImages}
-          className="rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitLabel}
         </button>

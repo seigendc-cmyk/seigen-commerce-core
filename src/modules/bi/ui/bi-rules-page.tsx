@@ -70,7 +70,7 @@ export function BiRulesPage() {
       <div className="flex flex-wrap gap-2">
         <Link
           href="/dashboard/inventory?tab=stocktake"
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange"
+          className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500"
         >
           Inventory stocktake →
         </Link>
@@ -81,7 +81,7 @@ export function BiRulesPage() {
           <h2 className="text-base font-semibold text-white">Rules</h2>
           <button
             type="button"
-            className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+            className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
             onClick={() =>
               setEditing({
                 id: "",
@@ -120,7 +120,7 @@ export function BiRulesPage() {
                   <td className="px-3 py-2.5 text-right">
                     <button
                       type="button"
-                      className="text-sm font-semibold text-brand-orange hover:underline"
+                      className="text-sm font-semibold text-teal-600 hover:underline"
                       onClick={() => setEditing(r)}
                     >
                       Edit
@@ -210,14 +210,14 @@ export function BiRulesPage() {
               ) : null}
               <button
                 type="button"
-                className="rounded-lg border border-white/20 px-4 py-2 text-sm text-white hover:border-brand-orange"
+                className="rounded-lg border border-white/20 px-4 py-2 text-sm text-white hover:border-teal-500"
                 onClick={() => setEditing(null)}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
                 onClick={() => {
                   let config: Record<string, unknown> = {};
                   try {

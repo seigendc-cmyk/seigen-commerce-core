@@ -189,7 +189,7 @@ export function InventoryOverview() {
               <p className="mt-2 text-3xl font-semibold text-white">{card.value}</p>
               <Link
                 href={card.href}
-                className="mt-4 inline-block text-sm font-semibold text-brand-orange hover:underline"
+                className="mt-4 inline-block text-sm font-semibold text-teal-600 hover:underline"
               >
                 {card.cta} →
               </Link>
@@ -203,19 +203,19 @@ export function InventoryOverview() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href="/dashboard/inventory/add-product"
-                className="rounded-lg bg-brand-orange px-3 py-2 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+                className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
               >
                 Add product
               </Link>
               <Link
                 href="/dashboard/inventory/purchasing"
-                className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+                className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
               >
                 Purchasing
               </Link>
               <Link
                 href="/dashboard/inventory/receiving"
-                className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+                className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
               >
                 Receiving
               </Link>
@@ -230,7 +230,7 @@ export function InventoryOverview() {
             <button
               type="button"
               onClick={() => selectTab("catalog")}
-              className="font-semibold text-brand-orange hover:underline"
+              className="font-semibold text-teal-600 hover:underline"
             >
               Item List
             </button>{" "}
@@ -253,7 +253,7 @@ export function InventoryOverview() {
                   </p>
                   <Link
                     href={`/dashboard/inventory/edit-product/${r.id}`}
-                    className="mt-2 inline-block text-xs font-semibold text-brand-orange hover:underline"
+                    className="mt-2 inline-block text-xs font-semibold text-teal-600 hover:underline"
                   >
                     Edit →
                   </Link>

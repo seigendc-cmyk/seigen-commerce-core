@@ -13,7 +13,7 @@ export function CashBookSettingsForm() {
       </p>
       <Link
         href="/dashboard/financial?tab=cashbook"
-        className="mt-5 inline-flex rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+        className="mt-5 inline-flex rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
       >
         Open CashBook →
       </Link>

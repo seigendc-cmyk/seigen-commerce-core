@@ -106,7 +106,7 @@ export function ComplianceDocuments({ docs, onChange }: Props) {
                 type="checkbox"
                 checked={slot.showOnStorefront}
                 onChange={(e) => onChange(key, { ...slot, showOnStorefront: e.target.checked })}
-                className="mt-0.5 h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-brand-orange focus:ring-brand-orange"
+                className="mt-0.5 h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-teal-600 focus:ring-teal-500"
               />
               <span className="text-xs leading-snug text-neutral-300">
                 Show on public online storefront

@@ -150,7 +150,7 @@ export function CheckWriterModal({
         <div className="border-b border-slate-200 px-6 py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-orange">Payment voucher</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-600">Payment voucher</p>
               <h2 className={finLight.title}>Check writer</h2>
               <p className={finLight.subtitle}>
                 Funds leave the selected cash or bank account and are applied to the GL line below. Debits must equal
@@ -168,7 +168,7 @@ export function CheckWriterModal({
 
         {minimized ? null : <div className="space-y-6 px-6 py-6">
           <div className={finLight.instrument}>
-            <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-orange/15 blur-2xl" />
+            <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-teal-600/15 blur-2xl" />
             <p className={finLight.label}>Pay from</p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-slate-700">
@@ -242,7 +242,7 @@ export function CheckWriterModal({
                   onClick={() => setMode("creditor")}
                   className={
                     mode === "creditor"
-                      ? "rounded-md bg-brand-orange px-3 py-1.5 text-xs font-semibold text-white"
+                      ? "rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white"
                       : "rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
                   }
                 >
@@ -253,7 +253,7 @@ export function CheckWriterModal({
                   onClick={() => setMode("expense")}
                   className={
                     mode === "expense"
-                      ? "rounded-md bg-brand-orange px-3 py-1.5 text-xs font-semibold text-white"
+                      ? "rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white"
                       : "rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
                   }
                 >

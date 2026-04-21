@@ -86,7 +86,7 @@ export function ReceiptModal({
         <div className="border-b border-slate-200 px-6 py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-orange">Deposit voucher</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-600">Deposit voucher</p>
               <h2 className={finLight.title}>Receipt</h2>
               <p className={finLight.subtitle}>
                 Record money received into cash or bank. The instrument block below must match the GL credit — one amount
@@ -104,7 +104,7 @@ export function ReceiptModal({
 
         {minimized ? null : <div className="space-y-6 px-6 py-6">
           <div className={finLight.instrument}>
-            <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-orange/15 blur-2xl" />
+            <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-teal-600/15 blur-2xl" />
             <p className={finLight.label}>Receive into</p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-slate-700">

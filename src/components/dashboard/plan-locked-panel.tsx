@@ -38,13 +38,13 @@ export function PlanLockedPanel({ area, planId }: Props) {
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Link
               href="/plans"
-              className="inline-flex justify-center rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-hover"
+              className="inline-flex justify-center rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
             >
               View plans and upgrade
             </Link>
             <Link
               href="/dashboard"
-              className="inline-flex justify-center rounded-lg border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:border-brand-orange hover:text-brand-orange"
+              className="inline-flex justify-center rounded-lg border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
             >
               Back to overview
             </Link>

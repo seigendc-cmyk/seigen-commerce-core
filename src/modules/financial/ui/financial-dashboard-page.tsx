@@ -91,7 +91,7 @@ function CogsReservesCard({ entries }: { entries: CogsReservesEntry[] }) {
               <tr>
                 <td colSpan={4} className="px-3 py-8 text-center text-neutral-400">
                   No movements yet. Sell on{" "}
-                  <Link href="/dashboard/pos" className="font-semibold text-brand-orange hover:underline">
+                  <Link href="/dashboard/pos" className="font-semibold text-teal-600 hover:underline">
                     POS
                   </Link>{" "}
                   or fund from CashBook.

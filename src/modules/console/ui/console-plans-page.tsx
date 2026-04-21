@@ -36,7 +36,7 @@ export function ConsolePlansPage() {
                     ) : null}
                   </p>
                   {p.featured ? (
-                    <span className="mt-2 inline-flex rounded bg-brand-orange/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange">
+                    <span className="mt-2 inline-flex rounded bg-teal-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-600">
                       Featured
                     </span>
                   ) : null}

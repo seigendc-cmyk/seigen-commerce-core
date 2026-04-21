@@ -95,7 +95,7 @@ export function StockAdjustmentsTab({ tick }: { tick: number }) {
                     No adjustments yet. Post a physical count under{" "}
                     <Link
                       href="/dashboard/inventory?tab=stocktake"
-                      className="font-semibold text-brand-orange hover:underline"
+                      className="font-semibold text-teal-600 hover:underline"
                     >
                       Inventory → Stocktake
                     </Link>

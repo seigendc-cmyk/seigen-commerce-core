@@ -112,6 +112,7 @@ export function normalizeSupplier(s: Supplier): Supplier {
 }
 
 const DEFAULT_BRANCH_ID = "branch_default";
+export const DEFAULT_WAREHOUSE_BRANCH_ID = "warehouse_default";
 
 /** Legacy rows without `kind` behave as trading. */
 export function branchKind(b: Branch): BranchKind {
@@ -122,14 +123,18 @@ export function isHeadOfficeBranch(b: Branch): boolean {
   return branchKind(b) === "head_office";
 }
 
+export function isWarehouseBranch(b: Branch): boolean {
+  return branchKind(b) === "warehouse";
+}
+
 /** Shops that count toward billable location limits and can sell / move stock. */
 export function branchIsBillableShop(b: Branch): boolean {
-  return !isHeadOfficeBranch(b);
+  return branchKind(b) === "trading";
 }
 
 /** POS, receiving, assembly, stocktake (unless scoped elsewhere). */
 export function branchAllowsTradingOperations(b: Branch): boolean {
-  return !isHeadOfficeBranch(b);
+  return branchKind(b) === "trading";
 }
 
 export function normalizeBranch(b: Branch): Branch {
@@ -230,22 +235,58 @@ function getDb(): DbShape {
   }
   const db = store.read<DbShape>("db", { branches: [], suppliers: [], products: [], stock: [] });
   let write = false;
-  // Ensure default branch exists — new installs: Head office (non-trading).
+  // Ensure Head office exists (non-trading, non-stock).
   if (!db.branches.some((b) => b.id === DEFAULT_BRANCH_ID)) {
     db.branches.unshift({
       id: DEFAULT_BRANCH_ID,
       name: "Head office",
       kind: "head_office",
-      isDefault: true,
+      isDefault: false,
       createdAt: nowIso(),
     });
     write = true;
   }
+
+  // Ensure Default Warehouse exists (receiving store; cannot sell).
+  if (!db.branches.some((b) => b.id === DEFAULT_WAREHOUSE_BRANCH_ID)) {
+    // New installs: make Warehouse the default operational store.
+    // Existing installs: we do NOT steal default from an existing trading shop.
+    const hasAnyDefault = db.branches.some((b) => b.isDefault);
+    const defaultIsOnlyHeadOffice =
+      hasAnyDefault && db.branches.every((b) => (b.isDefault ? branchKind(b) === "head_office" : true));
+    const shouldDefault = !hasAnyDefault || defaultIsOnlyHeadOffice;
+    db.branches.unshift({
+      id: DEFAULT_WAREHOUSE_BRANCH_ID,
+      name: "Main Warehouse",
+      kind: "warehouse",
+      isDefault: shouldDefault,
+      createdAt: nowIso(),
+    });
+    if (shouldDefault) {
+      for (const b of db.branches) {
+        if (b.id !== DEFAULT_WAREHOUSE_BRANCH_ID) b.isDefault = false;
+      }
+    }
+    write = true;
+  }
+
   // Legacy rows: infer trading so existing "Main branch" keeps selling until you add HO explicitly.
   for (const b of db.branches) {
     if (b.kind == null) {
       b.kind = "trading";
       write = true;
+    }
+  }
+  // Head office must never be the default operational store.
+  const ho = db.branches.find((b) => b.id === DEFAULT_BRANCH_ID);
+  if (ho?.isDefault) {
+    ho.isDefault = false;
+    write = true;
+    // If nothing else is default, prefer warehouse.
+    const anyDefault = db.branches.some((b) => b.isDefault);
+    if (!anyDefault) {
+      const wh = db.branches.find((b) => b.id === DEFAULT_WAREHOUSE_BRANCH_ID);
+      if (wh) wh.isDefault = true;
     }
   }
   if (write) {
@@ -291,6 +332,11 @@ export const InventoryRepo = {
     if (trading.length === 0) return undefined;
     return trading.find((b) => b.isDefault) ?? trading[0];
   },
+  /** Default non-selling warehouse used as the receiving store. */
+  getDefaultWarehouseBranch(): Branch | undefined {
+    const branches = getDb().branches.map(normalizeBranch);
+    return branches.find((b) => branchKind(b) === "warehouse") ?? branches.find((b) => b.id === DEFAULT_WAREHOUSE_BRANCH_ID);
+  },
   addBranch(input: { name: string; kind?: BranchKind }): Branch {
     const db = getDb();
     const kind: BranchKind = input.kind ?? "trading";
@@ -326,6 +372,33 @@ export const InventoryRepo = {
       b.isDefault = b.id === id;
     }
     setDb(db);
+  },
+
+  /**
+   * Delete a branch (used for unwanted shops and agent stalls).
+   * Guardrails:
+   * - cannot delete head office
+   * - cannot delete default branch
+   * - cannot delete when non-zero stock exists at branch
+   */
+  deleteBranch(id: Id): { ok: true } | { ok: false; error: string } {
+    const db = getDb();
+    const idx = db.branches.findIndex((b) => b.id === id);
+    if (idx < 0) return { ok: false, error: "Branch not found." };
+    const b = normalizeBranch(db.branches[idx]!);
+    if (isHeadOfficeBranch(b)) return { ok: false, error: "Head office cannot be deleted." };
+    if (b.isDefault) return { ok: false, error: "Default branch cannot be deleted. Set another branch as default first." };
+
+    const stock = db.stock.filter((s) => s.branchId === id);
+    const hasQty = stock.some((s) => Math.round(Number(s.onHandQty) * 1000) / 1000 !== 0);
+    if (hasQty) return { ok: false, error: "Branch has stock on hand. Transfer/clear stock before deleting." };
+
+    db.branches.splice(idx, 1);
+    // Remove empty stock records for this branch.
+    db.stock = db.stock.filter((s) => s.branchId !== id);
+    setDb(db);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("seigen-inventory-branches-updated"));
+    return { ok: true };
   },
 
   // Suppliers

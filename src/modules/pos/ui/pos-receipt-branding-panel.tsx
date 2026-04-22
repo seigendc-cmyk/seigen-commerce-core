@@ -21,23 +21,23 @@ export function PosReceiptBrandingPanel() {
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20">
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-semibold text-white"
+        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-semibold text-slate-900"
       >
         <span>Receipt appearance &amp; fiscal (OQR)</span>
-        <span className="text-neutral-500">{open ? "Hide" : "Show"}</span>
+        <span className="pos-data-log-muted">{open ? "Hide" : "Show"}</span>
       </button>
       {open ? (
-        <div className="space-y-3 border-t border-white/10 px-3 py-3">
-          <p className="text-[10px] leading-relaxed text-neutral-500">
+        <div className="space-y-3 border-t border-slate-200 px-3 py-3">
+          <p className="pos-data-log-muted text-[10px] leading-relaxed">
             Used for 80-column PDF, print, and previews. Logo as small PNG/WebP data URL (paste or use a file picker in a
             future build).
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="block text-[10px] font-medium text-neutral-400">
+            <label className="pos-data-log block text-[10px] font-semibold">
               Trading name
               <input
                 value={b.tradingName}
@@ -45,7 +45,7 @@ export function PosReceiptBrandingPanel() {
                 className="vendor-field mt-1 w-full rounded px-2 py-1.5 text-xs"
               />
             </label>
-            <label className="block text-[10px] font-medium text-neutral-400">
+            <label className="pos-data-log block text-[10px] font-semibold">
               Legal name
               <input
                 value={b.legalName}
@@ -54,7 +54,7 @@ export function PosReceiptBrandingPanel() {
               />
             </label>
           </div>
-          <label className="block text-[10px] font-medium text-neutral-400">
+          <label className="pos-data-log block text-[10px] font-semibold">
             Tax / VAT ID
             <input
               value={b.taxId}
@@ -62,7 +62,7 @@ export function PosReceiptBrandingPanel() {
               className="vendor-field mt-1 w-full rounded px-2 py-1.5 text-xs"
             />
           </label>
-          <label className="block text-[10px] font-medium text-neutral-400">
+          <label className="pos-data-log block text-[10px] font-semibold">
             Address (multi-line)
             <textarea
               value={b.addressLines}
@@ -71,7 +71,7 @@ export function PosReceiptBrandingPanel() {
               className="vendor-field mt-1 w-full resize-y rounded px-2 py-1.5 text-xs"
             />
           </label>
-          <label className="block text-[10px] font-medium text-neutral-400">
+          <label className="pos-data-log block text-[10px] font-semibold">
             Phone
             <input
               value={b.phone}
@@ -79,7 +79,7 @@ export function PosReceiptBrandingPanel() {
               className="vendor-field mt-1 w-full rounded px-2 py-1.5 text-xs"
             />
           </label>
-          <label className="block text-[10px] font-medium text-neutral-400">
+          <label className="pos-data-log block text-[10px] font-semibold">
             Logo (data URL, optional)
             <input
               value={b.logoDataUrl ?? ""}
@@ -88,7 +88,7 @@ export function PosReceiptBrandingPanel() {
               placeholder="data:image/png;base64,..."
             />
           </label>
-          <label className="block text-[10px] font-medium text-neutral-400">
+          <label className="pos-data-log block text-[10px] font-semibold">
             Footer message
             <textarea
               value={b.footerMessage}
@@ -97,7 +97,7 @@ export function PosReceiptBrandingPanel() {
               className="vendor-field mt-1 w-full resize-y rounded px-2 py-1.5 text-xs"
             />
           </label>
-          <label className="block text-[10px] font-medium text-neutral-400">
+          <label className="pos-data-log block text-[10px] font-semibold">
             Fiscal / verification signature
             <textarea
               value={b.fiscalSignature}
@@ -107,7 +107,7 @@ export function PosReceiptBrandingPanel() {
               placeholder="Authority signature block when registered"
             />
           </label>
-          <label className="block text-[10px] font-medium text-neutral-400">
+          <label className="pos-data-log block text-[10px] font-semibold">
             OQR payload (encoded in QR below footer)
             <textarea
               value={b.fiscalQrPayload}
@@ -121,11 +121,11 @@ export function PosReceiptBrandingPanel() {
             <button
               type="button"
               onClick={() => persist(defaultReceiptBranding())}
-              className="text-[10px] font-semibold text-neutral-400 hover:text-white"
+              className="text-[10px] font-semibold text-slate-600 hover:text-slate-900"
             >
               Reset defaults
             </button>
-            {hint ? <span className="text-[10px] text-emerald-400">{hint}</span> : null}
+            {hint ? <span className="text-[10px] font-semibold text-emerald-700">{hint}</span> : null}
           </div>
         </div>
       ) : null}

@@ -15,7 +15,7 @@ export type TaxLedgerEntry = {
   taxRatePercent: number;
   /** Net / taxable base this tax relates to (goods, or purchase taxable base). */
   taxableBase: number;
-  refKind: "sale" | "purchase_order";
+  refKind: "sale" | "sale_return" | "purchase_order";
   refId: string;
   memo: string;
 };
@@ -72,6 +72,22 @@ function replaceByRef(kind: TaxLedgerEntry["refKind"], refId: string, entry: Tax
   dispatchFinancialLedgersUpdated();
 }
 
+export function removeOutputTaxForSale(saleId: string): void {
+  const db = getDb();
+  const next = db.entries.filter((e) => !(e.refKind === "sale" && e.refId === saleId));
+  if (next.length === db.entries.length) return;
+  setDb({ entries: next });
+  dispatchFinancialLedgersUpdated();
+}
+
+export function removeOutputTaxForSaleReturn(returnId: string): void {
+  const db = getDb();
+  const next = db.entries.filter((e) => !(e.refKind === "sale_return" && e.refId === returnId));
+  if (next.length === db.entries.length) return;
+  setDb({ entries: next });
+  dispatchFinancialLedgersUpdated();
+}
+
 /**
  * Output tax from retail sales (POS). Idempotent per sale id.
  */
@@ -99,6 +115,38 @@ export function recordOutputTaxFromSale(input: {
     memo: `Output ${settings.taxLabel} · ${input.receiptNumber}`,
   };
   replaceByRef("sale", input.saleId, entry);
+}
+
+/**
+ * Output tax reversal for returns (POS). Idempotent per return id.
+ * `amount` and `taxableBase` are passed as positive magnitudes; the ledger stores direction=output with a negative memo semantics
+ * by convention (the ledger itself remains non-negative; reports can net by kind).
+ */
+export function recordOutputTaxReturnFromSale(input: {
+  returnId: string;
+  saleId: string;
+  receiptNumber: string;
+  amount: number;
+  taxableBase: number;
+  createdAt?: string;
+}): void {
+  const settings = readTaxOnSalesSettings();
+  if (!settings.enabled) return;
+  const a = roundMoney(input.amount);
+  if (a <= 0) return;
+  const base = roundMoney(input.taxableBase);
+  const entry: TaxLedgerEntry = {
+    id: uid(),
+    createdAt: input.createdAt ?? new Date().toISOString(),
+    direction: "output",
+    amount: a,
+    taxRatePercent: settings.ratePercent,
+    taxableBase: base,
+    refKind: "sale_return",
+    refId: input.returnId,
+    memo: `Return ${settings.taxLabel} · ${input.receiptNumber} · sale ${input.saleId.slice(-8)}`,
+  };
+  replaceByRef("sale_return", input.returnId, entry);
 }
 
 /**

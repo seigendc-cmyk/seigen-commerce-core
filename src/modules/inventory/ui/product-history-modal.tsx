@@ -28,12 +28,14 @@ function money(n: number | null) {
 
 function kindLabel(k: ProductHistoryKind): string {
   switch (k) {
+    case "opening_balance":
+      return "Opening balance";
     case "sale":
       return "Sale";
     case "stock_adjustment":
       return "Stock adjustment";
     case "purchase_order":
-      return "Purchase";
+      return "PO instruction";
     case "goods_receipt":
       return "Receiving";
     default:
@@ -74,6 +76,13 @@ function addDaysKey(days: number): string {
   return dateKey(d);
 }
 
+function dayBefore(dayKey: string): string {
+  const d = new Date(dayKey + "T12:00:00");
+  if (Number.isNaN(d.getTime())) return dayKey;
+  d.setDate(d.getDate() - 1);
+  return dateKey(d);
+}
+
 type Props = {
   product: ProductReadModel;
   onClose: () => void;
@@ -83,6 +92,10 @@ export function ProductHistoryModal({ product, onClose }: Props) {
   const [fromDate, setFromDate] = useState(defaultFromDate);
   const [toDate, setToDate] = useState(todayDate);
   const [branchId, setBranchId] = useState<string>("all");
+  const [showOpening, setShowOpening] = useState(true);
+  const [sortKey, setSortKey] = useState<
+    "when_desc" | "when_asc" | "amount_desc" | "amount_asc" | "qty_desc" | "qty_asc" | "ref_asc" | "ref_desc"
+  >("when_desc");
   const [tick, setTick] = useState(0);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
@@ -95,10 +108,10 @@ export function ProductHistoryModal({ product, onClose }: Props) {
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
       if (
-        e.key === inventoryKeys.db ||
+        e.key === inventoryKeys.db() ||
         e.key === purchasingKeys.purchasing ||
         e.key === receivingKeys.receiving ||
-        e.key === posSalesStorageKey ||
+        e.key === posSalesStorageKey() ||
         e.key === stockAdjustmentLedgerStorageKey()
       ) {
         bump();
@@ -126,22 +139,89 @@ export function ProductHistoryModal({ product, onClose }: Props) {
     });
   }, [product.id, fromDate, toDate, branchId, tick]);
 
+  const openingSnapshot = useMemo((): { qty: number; cost: number } => {
+    void tick;
+    if (!showOpening) return { qty: 0, cost: 0 };
+    if (!fromDate) return { qty: 0, cost: 0 };
+    const prior = buildProductHistory(product.id, {
+      toDate: dayBefore(fromDate),
+      branchId: branchId === "all" ? "all" : branchId,
+    });
+    const asc = prior.slice().sort((a, b) => a.at.localeCompare(b.at));
+    let q = 0;
+    let c = 0;
+    for (const r of asc) {
+      if (r.qtyDelta != null) q += r.qtyDelta;
+      if (r.amount != null) c += r.amount;
+    }
+    return { qty: q, cost: c };
+  }, [product.id, fromDate, branchId, tick, showOpening]);
+
   const rowsWithRunning = useMemo((): ProductHistoryRunningRow[] => {
+    const base = rows.slice();
+    const openingRow: ProductHistoryRow | null =
+      showOpening && fromDate
+        ? {
+            id: `opening_${product.id}_${fromDate}_${branchId}`,
+            at: `${fromDate}T00:00:00.000Z`,
+            branchId: (branchId === "all" ? "all" : branchId) as any,
+            branchName: branchId === "all" ? "All branches" : InventoryRepo.getBranch(branchId)?.name || branchId,
+            kind: "opening_balance",
+            title: "Opening balance",
+            detail: "Balance before period start",
+            qtyDelta: null,
+            amount: null,
+            ref: "OPEN",
+          }
+        : null;
+
     // Running totals should be chronological (oldest → newest) for meaning.
-    const asc = [...rows].sort((a, b) => a.at.localeCompare(b.at));
-    let runQty: number | null = 0;
-    let runCost: number | null = 0;
+    const asc = [...(openingRow ? [openingRow, ...base] : base)].sort((a, b) => a.at.localeCompare(b.at));
+    let runQty: number | null = openingRow ? openingSnapshot.qty : 0;
+    let runCost: number | null = openingRow ? openingSnapshot.cost : 0;
     const map = new Map<string, { q: number | null; c: number | null }>();
     for (const r of asc) {
+      if (r.kind === "opening_balance") {
+        map.set(r.id, { q: runQty, c: runCost });
+        continue;
+      }
       if (runQty != null && r.qtyDelta != null) runQty += r.qtyDelta;
       if (runCost != null && r.amount != null) runCost += r.amount;
       map.set(r.id, { q: runQty, c: runCost });
     }
-    return rows.map((r) => {
+
+    const out = openingRow ? [openingRow, ...base] : base;
+    return out.map((r) => {
       const x = map.get(r.id);
       return { ...r, runningQty: x?.q ?? null, runningCost: x?.c ?? null };
     });
-  }, [rows]);
+  }, [rows, showOpening, fromDate, branchId, product.id, openingSnapshot.qty, openingSnapshot.cost]);
+
+  const displayedRows = useMemo((): ProductHistoryRunningRow[] => {
+    const xs = rowsWithRunning.slice();
+    const num = (n: number | null) => (n == null || !Number.isFinite(n) ? null : n);
+    xs.sort((a, b) => {
+      switch (sortKey) {
+        case "when_asc":
+          return a.at.localeCompare(b.at);
+        case "when_desc":
+          return b.at.localeCompare(a.at);
+        case "amount_asc":
+          return (num(a.amount) ?? -Infinity) - (num(b.amount) ?? -Infinity) || b.at.localeCompare(a.at);
+        case "amount_desc":
+          return (num(b.amount) ?? -Infinity) - (num(a.amount) ?? -Infinity) || b.at.localeCompare(a.at);
+        case "qty_asc":
+          return (num(a.qtyDelta) ?? -Infinity) - (num(b.qtyDelta) ?? -Infinity) || b.at.localeCompare(a.at);
+        case "qty_desc":
+          return (num(b.qtyDelta) ?? -Infinity) - (num(a.qtyDelta) ?? -Infinity) || b.at.localeCompare(a.at);
+        case "ref_asc":
+          return a.ref.localeCompare(b.ref) || b.at.localeCompare(a.at);
+        case "ref_desc":
+          return b.ref.localeCompare(a.ref) || b.at.localeCompare(a.at);
+      }
+    });
+    return xs;
+  }, [rowsWithRunning, sortKey]);
 
   const filtersLabel = useMemo(() => {
     const range = `${fromDate || "…"} → ${toDate || "…"}`;
@@ -191,7 +271,7 @@ export function ProductHistoryModal({ product, onClose }: Props) {
                 subtitle: `${product.sku} · ${product.name}`,
                 generatedAt: new Date().toLocaleString(),
                 filtersLabel,
-                rows: rowsWithRunning,
+                rows: displayedRows,
               })}
               className="shrink-0 rounded-lg bg-black/5 px-3 py-2 text-sm font-semibold text-neutral-900 hover:bg-black/10"
             >
@@ -204,7 +284,7 @@ export function ProductHistoryModal({ product, onClose }: Props) {
                 subtitle: `${product.sku} · ${product.name}`,
                 generatedAt: new Date().toLocaleString(),
                 filtersLabel,
-                rows: rowsWithRunning,
+                rows: displayedRows,
               })}
               className="shrink-0 rounded-lg border border-teal-500/50 bg-teal-600/10 px-3 py-2 text-sm font-semibold text-teal-600 hover:bg-teal-600/20"
             >
@@ -219,7 +299,7 @@ export function ProductHistoryModal({ product, onClose }: Props) {
                   subtitle: `${product.sku} · ${product.name}`,
                   generatedAt: new Date().toLocaleString(),
                   filtersLabel,
-                  rows: rowsWithRunning,
+                  rows: displayedRows,
                 }).then((r) => {
                   if (!r.ok) setShareMsg(r.reason);
                 });
@@ -308,6 +388,31 @@ export function ProductHistoryModal({ product, onClose }: Props) {
                 ))}
               </select>
             </label>
+            <label className="mb-0.5 flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-neutral-700">
+              <input
+                type="checkbox"
+                checked={showOpening}
+                onChange={(e) => setShowOpening(e.target.checked)}
+              />
+              Opening balance
+            </label>
+            <label className="block text-xs text-neutral-600">
+              <span className="mb-1 block font-medium text-neutral-700">Sort</span>
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as any)}
+                className="w-[190px] rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-900"
+              >
+                <option value="when_desc">When (newest first)</option>
+                <option value="when_asc">When (oldest first)</option>
+                <option value="amount_desc">Amount (high → low)</option>
+                <option value="amount_asc">Amount (low → high)</option>
+                <option value="qty_desc">Qty Δ (high → low)</option>
+                <option value="qty_asc">Qty Δ (low → high)</option>
+                <option value="ref_asc">Ref (A → Z)</option>
+                <option value="ref_desc">Ref (Z → A)</option>
+              </select>
+            </label>
             <button
               type="button"
               onClick={() => {
@@ -328,7 +433,7 @@ export function ProductHistoryModal({ product, onClose }: Props) {
           </div>
           {shareMsg ? <p className="mt-3 text-xs text-amber-700">{shareMsg}</p> : null}
           <p className="mt-3 text-xs text-neutral-500">
-            Includes POS sales, stocktake adjustments, purchase orders, and goods receipts stored locally.
+            POS sales, stocktake adjustments, and goods receipts (stock-in). Stored locally.
           </p>
         </div>
 
@@ -353,7 +458,7 @@ export function ProductHistoryModal({ product, onClose }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.06]">
-                {rowsWithRunning.map((r) => (
+                {displayedRows.map((r) => (
                   <tr key={r.id} className="align-top">
                     <td className="py-3 pr-3 whitespace-nowrap text-neutral-700">
                       {new Date(r.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}

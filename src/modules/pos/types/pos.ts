@@ -60,6 +60,10 @@ export type Sale = {
   status: SaleStatus;
   createdAt: string;
   branchId: Id;
+  /** Where the sale was completed (desktop POS vs mobile terminal). */
+  surface?: "desktop" | "terminal";
+  /** When `surface` is terminal, links the sale to a terminal profile for audit. */
+  terminalProfileId?: string | null;
   lines: SaleLine[];
   /** Goods subtotal (sum of lines). */
   subtotal: number;
@@ -85,4 +89,48 @@ export type Sale = {
   taxRatePercentSnapshot?: number;
   /** Whether shelf prices were tax-inclusive at time of sale. */
   pricesTaxInclusiveSnapshot?: boolean;
+
+  /** Base currency code at time of sale (ISO 4217). */
+  currencyCodeSnapshot?: string;
+  /** Tax label at time of sale (VAT/GST/Sales tax). */
+  taxLabelSnapshot?: string;
+  /** Whether tax was enabled at the time of sale. */
+  taxEnabledSnapshot?: boolean;
+
+  /** When voided, records metadata for audit and downstream reconciliation. */
+  voidedAt?: string;
+  voidedReason?: string;
+};
+
+export type SaleReturnLine = {
+  productId: Id;
+  sku: string;
+  name: string;
+  unit: string;
+  unitPrice: number;
+  qty: number;
+  lineTotal: number;
+  taxable?: boolean;
+};
+
+export type SaleReturn = {
+  id: Id;
+  /** Original sale id. */
+  saleId: Id;
+  /** Original receipt number (for operator reference). */
+  receiptNumber: string;
+  createdAt: string;
+  branchId: Id;
+  /** Desktop vs terminal surface for audit. */
+  surface?: "desktop" | "terminal";
+  terminalProfileId?: string | null;
+  reason: string;
+  lines: SaleReturnLine[];
+  subtotal: number;
+  /** Output tax reversal amount (snapshot). */
+  salesTaxAmount?: number;
+  taxableNetBase?: number;
+  currencyCodeSnapshot?: string;
+  taxLabelSnapshot?: string;
+  taxEnabledSnapshot?: boolean;
 };

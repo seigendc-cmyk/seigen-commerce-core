@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useWorkspace } from "@/components/dashboard/workspace-context";
 import {
   CATALOG_COLUMN_LABELS,
   CATALOG_DATA_COLUMN_IDS,
@@ -14,6 +15,12 @@ import { readCatalogColumnPrefs, writeCatalogColumnPrefs } from "../services/cat
 import { parseSearchTokens, productMatchesSearchTokens } from "../services/product-catalog-search";
 import type { ProductReadModel } from "../types/product-read-model";
 import { ProductHistoryModal } from "./product-history-modal";
+import { buildPublishMarketListingPayloadFromOperationalTruth } from "@/modules/market-space/services/operational-listing-payload-builder";
+import { publishOperationalListingDraftAction } from "@/modules/market-space/actions/operational-publisher-actions";
+import { refreshMarketListingProjectionAction } from "@/modules/market-space/actions/publish-listing-actions";
+import { readVendorCore } from "@/modules/dashboard/settings/vendor-core-storage";
+import type { ShopBranch } from "@/modules/dashboard/settings/branches/branch-types";
+import { readLocalListingIdForProduct, writeLocalListingLink } from "@/modules/market-space/services/local-listing-link-store";
 
 function money(n: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -67,10 +74,13 @@ function isThumbColumn(col: CatalogDataColumnId): boolean {
 
 export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] }) {
   const router = useRouter();
+  const workspace = useWorkspace();
   const [search, setSearch] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<CatalogDataColumnId[]>(() => readCatalogColumnPrefs());
   const [historyProduct, setHistoryProduct] = useState<ProductReadModel | null>(null);
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
+  const [publishingKey, setPublishingKey] = useState<string | null>(null);
 
   useEffect(() => {
     writeCatalogColumnPrefs(visibleColumns);
@@ -114,6 +124,120 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
   };
 
   const resetColumns = () => setVisibleColumns(defaultVisibleColumnOrder());
+
+  function vendorGeoForBranch(branchId: string): { city?: string | null; suburb?: string | null; province?: string | null; country?: string | null } {
+    const branches = readVendorCore<ShopBranch[]>("branches", []);
+    const b = branches.find((x) => x.id === branchId);
+    if (!b) return {};
+    return {
+      city: b.city?.trim() ? b.city.trim() : null,
+      suburb: b.suburb?.trim() ? b.suburb.trim() : null,
+      province: b.region?.trim() ? b.region.trim() : null,
+      country: b.country?.trim() ? b.country.trim() : null,
+    };
+  }
+
+  async function syncDraftListingFromOperationalTruth(row: ProductReadModel) {
+    const tenantId = workspace?.tenant?.id;
+    if (!tenantId) {
+      setPublishMsg("Workspace tenant not loaded. Sign in and ensure provisioning is complete.");
+      return;
+    }
+
+    const key = `${row.branchId}:${row.id}`;
+    setPublishingKey(key);
+    setPublishMsg(null);
+    try {
+      const geo = vendorGeoForBranch(row.branchId);
+      const built = buildPublishMarketListingPayloadFromOperationalTruth({
+        vendor_id: tenantId,
+        storefront_id: tenantId,
+        branch_id: row.branchId,
+        product_id: row.id,
+        publish_status: "draft",
+        ...geo,
+        // Drafts should be non-public until vendor completes geo/media.
+        visible_in_market_space: false,
+        visible_in_itred: false,
+      });
+      if (!built.ok) {
+        setPublishMsg(built.error);
+        return;
+      }
+
+      const res = await publishOperationalListingDraftAction({ payload: built.payload });
+      if (!res.ok) {
+        setPublishMsg(res.validationErrors?.length ? `${res.error}: ${res.validationErrors.join(", ")}` : res.error);
+        return;
+      }
+
+      writeLocalListingLink({ branchId: row.branchId, productId: row.id, listingId: res.listingId });
+      setPublishMsg(`Draft listing synced (listingId ${res.listingId}).`);
+    } finally {
+      setPublishingKey(null);
+    }
+  }
+
+  async function refreshProjectionFromOperationalTruth(row: ProductReadModel) {
+    const listingId = readLocalListingIdForProduct({ branchId: row.branchId, productId: row.id });
+    if (!listingId) {
+      setPublishMsg("No listingId recorded for this product+branch yet. Sync draft first.");
+      return;
+    }
+    const tenantId = workspace?.tenant?.id;
+    if (!tenantId) {
+      setPublishMsg("Workspace tenant not loaded.");
+      return;
+    }
+
+    const key = `refresh:${row.branchId}:${row.id}`;
+    setPublishingKey(key);
+    setPublishMsg(null);
+    try {
+      const geo = vendorGeoForBranch(row.branchId);
+      const built = buildPublishMarketListingPayloadFromOperationalTruth({
+        vendor_id: tenantId,
+        storefront_id: tenantId,
+        branch_id: row.branchId,
+        product_id: row.id,
+        publish_status: "draft",
+        ...geo,
+        visible_in_market_space: false,
+        visible_in_itred: false,
+      });
+      if (!built.ok) {
+        setPublishMsg(built.error);
+        return;
+      }
+
+      // Builder-owned fields win. Do NOT patch geo/media/visibility unless explicitly provided.
+      const patch = {
+        sku: built.payload.sku ?? null,
+        listing_slug: built.payload.listing_slug,
+        title: built.payload.title,
+        short_description: built.payload.short_description ?? null,
+        brand: built.payload.brand ?? null,
+        category_id: built.payload.category_id ?? null,
+        category_name: built.payload.category_name ?? null,
+        searchable_text: built.payload.searchable_text ?? null,
+        public_price: built.payload.public_price,
+        currency_code: built.payload.currency_code,
+        stock_badge: built.payload.stock_badge ?? null,
+        stock_signal: built.payload.stock_signal ?? null,
+        pickup_supported: built.payload.pickup_supported ?? false,
+        delivery_supported: built.payload.delivery_supported ?? false,
+      };
+
+      const res = await refreshMarketListingProjectionAction(listingId, patch);
+      if (!res.ok) {
+        setPublishMsg(res.error);
+        return;
+      }
+      setPublishMsg("Projection refreshed from operational truth.");
+    } finally {
+      setPublishingKey(null);
+    }
+  }
 
   return (
     <section className="vendor-panel-soft rounded-2xl p-6">
@@ -217,6 +341,12 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
         </div>
       ) : null}
 
+      {publishMsg ? (
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-neutral-200">
+          {publishMsg}
+        </div>
+      ) : null}
+
       {rows.length === 0 ? (
         <div className="vendor-empty mt-4 rounded-xl px-4 py-6 text-center text-sm leading-relaxed">
           No products yet. Use <span className="font-semibold text-teal-300">Add</span> to create your first item.
@@ -293,13 +423,37 @@ export function InventoryProductCatalogTab({ rows }: { rows: ProductReadModel[] 
                     </td>
                   ))}
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/dashboard/inventory/edit-product/${r.id}`}
-                      className="font-semibold text-teal-300 hover:text-teal-200 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      Edit
-                    </Link>
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void syncDraftListingFromOperationalTruth(r);
+                        }}
+                        disabled={publishingKey === `${r.branchId}:${r.id}`}
+                        className="text-xs font-semibold text-emerald-300 hover:text-emerald-200 hover:underline disabled:opacity-60"
+                      >
+                        Sync draft
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void refreshProjectionFromOperationalTruth(r);
+                        }}
+                        disabled={publishingKey === `refresh:${r.branchId}:${r.id}`}
+                        className="text-xs font-semibold text-sky-300 hover:text-sky-200 hover:underline disabled:opacity-60"
+                      >
+                        Refresh projection
+                      </button>
+                      <Link
+                        href={`/dashboard/inventory/edit-product/${r.id}`}
+                        className="text-xs font-semibold text-teal-300 hover:text-teal-200 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Edit
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

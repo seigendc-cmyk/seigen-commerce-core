@@ -3,6 +3,7 @@ import type { Id } from "@/modules/inventory/types/models";
 import { getConsignmentAgreement } from "@/modules/consignment/services/consignment-agreements";
 import { appendConsignmentCustodyEntry } from "@/modules/consignment/services/consignment-custody-ledger";
 import { postConsignmentIssueInvoiceJournal } from "@/modules/consignment/services/consignment-issue-accounting";
+import { requireStockOpsBranch, requireTradingBranch } from "@/modules/inventory/services/stock-mutation-policy";
 import {
   appendAudit,
   documentNumberExists,
@@ -59,6 +60,13 @@ function assertAgreementMatchesInvoice(inv: ConsignmentIssueInvoice) {
   if (!ag.isActive) return { ok: false as const, error: "Agreement is inactive." };
   if (ag.principalBranchId !== inv.issuingBranchId) return { ok: false as const, error: "Issuing branch must match the agreement principal branch." };
   if (ag.stallBranchId !== inv.agentStallBranchId) return { ok: false as const, error: "Agent stall must match the agreement." };
+
+  // Branch discipline: principal must be stock-ops (warehouse/trading), stall must be trading; head office blocked.
+  const principal = requireStockOpsBranch(ag.principalBranchId, "Principal branch cannot hold consignment stock.");
+  if (!principal.ok) return { ok: false as const, error: principal.error };
+  const stall = requireTradingBranch(ag.stallBranchId, "Consignment stall must be a trading branch (not head office).");
+  if (!stall.ok) return { ok: false as const, error: stall.error };
+
   return { ok: true as const, agreement: ag };
 }
 

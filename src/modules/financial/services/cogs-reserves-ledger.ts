@@ -17,6 +17,7 @@ export type CogsReservesLine = {
 
 export type CogsReservesEntryKind =
   | "sale"
+  | "sale_return"
   | "po_cash"
   | "transfer_in_cash"
   | "transfer_in_bank"
@@ -34,6 +35,7 @@ export type CogsReservesEntry = {
   /** Signed: positive adds to reserve, negative reduces (PO cash, transfers out). */
   totalCogs: number;
   saleId?: string;
+  saleReturnId?: string;
   receiptNumber?: string;
   purchaseOrderId?: string;
   entryKind?: CogsReservesEntryKind;
@@ -127,6 +129,71 @@ export function recordCogsReservesFromSale(sale: Sale): void {
     saleId: sale.id,
     receiptNumber: sale.receiptNumber,
     entryKind: "sale",
+  });
+  setDb(db);
+  notifyLedgersUpdated();
+}
+
+/** Removes any COGS reserve entry tied to a sale id (used for void/reversal). */
+export function removeCogsReservesForSale(saleId: string): void {
+  const db = getDb();
+  const next = db.entries.filter((e) => e.saleId !== saleId);
+  if (next.length === db.entries.length) return;
+  setDb({ entries: next });
+  notifyLedgersUpdated();
+}
+
+export function removeCogsReservesForSaleReturn(returnId: string): void {
+  const db = getDb();
+  const next = db.entries.filter((e) => e.saleReturnId !== returnId);
+  if (next.length === db.entries.length) return;
+  setDb({ entries: next });
+  notifyLedgersUpdated();
+}
+
+/**
+ * Append a negative COGS Reserves entry for a sale return. Idempotent per return id (replaces if duplicate).
+ */
+export function recordCogsReservesFromSaleReturn(input: {
+  returnId: string;
+  saleId: string;
+  receiptNumber: string;
+  branchId: string;
+  createdAt: string;
+  lines: Array<{ productId: string; sku: string; name: string; qty: number }>;
+}): void {
+  const lines: CogsReservesLine[] = [];
+  for (const ln of input.lines) {
+    const p = InventoryRepo.getProduct(ln.productId);
+    if (!p) continue;
+    const unitCost = landUnitCostFromProduct(p);
+    const lineCogs = roundMoney(unitCost * ln.qty);
+    if (lineCogs <= 0) continue;
+    lines.push({
+      productId: ln.productId,
+      sku: ln.sku,
+      name: ln.name,
+      qty: ln.qty,
+      unitCost,
+      lineCogs,
+    });
+  }
+  const total = roundMoney(lines.reduce((s, l) => s + l.lineCogs, 0));
+  if (total <= 0) return;
+
+  const db = getDb();
+  db.entries = db.entries.filter((e) => e.saleReturnId !== input.returnId);
+  db.entries.push({
+    id: uid(),
+    createdAt: input.createdAt,
+    branchId: input.branchId,
+    lines,
+    totalCogs: -total,
+    saleId: input.saleId,
+    saleReturnId: input.returnId,
+    receiptNumber: `${input.receiptNumber} (return)`,
+    entryKind: "sale_return",
+    memo: `Return COGS reversal · ${input.receiptNumber}`,
   });
   setDb(db);
   notifyLedgersUpdated();

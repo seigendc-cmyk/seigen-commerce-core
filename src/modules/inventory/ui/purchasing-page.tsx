@@ -8,6 +8,7 @@ import { InventoryRepo } from "../services/inventory-repo";
 import { listProductReadModels } from "../services/product-read-model";
 import { defaultExpectedUnitCostFromProduct, PurchasingService } from "../services/purchasing-service";
 import { SupplierProfilePanel } from "./supplier-profile-panel";
+import { PurchaseOrderFormModal } from "./purchase-order-form-modal";
 
 function money(n: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -18,6 +19,9 @@ export function PurchasingPage() {
   const [productsVersion, setProductsVersion] = useState(0);
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [activePoId, setActivePoId] = useState<Id | null>(null);
+  const [tab, setTab] = useState<"active" | "history">("active");
+  const [poModalOpen, setPoModalOpen] = useState(false);
+  const [poModalMode, setPoModalMode] = useState<"create" | "edit" | "view">("edit");
 
   const [poSupplierId, setPoSupplierId] = useState<Id>("");
   const [poReference, setPoReference] = useState("");
@@ -65,8 +69,22 @@ export function PurchasingPage() {
 
   return (
     <>
-      <DashboardTopBar title="Purchasing" subtitle="Create local purchase orders and add items with expected cost." />
+      <DashboardTopBar
+        title="Purchasing"
+        subtitle="Purchase orders are instructional memos. On-hand stock increases only when you receive goods."
+      />
       <div className="flex-1 space-y-8 px-4 py-8 sm:px-6">
+        <PurchaseOrderFormModal
+          open={poModalOpen}
+          mode={poModalMode}
+          suppliers={suppliers}
+          purchaseOrder={activePo ?? null}
+          onClose={() => setPoModalOpen(false)}
+          onChanged={(nextId) => {
+            refresh();
+            if (nextId !== undefined) setActivePoId(nextId ?? null);
+          }}
+        />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/dashboard/inventory" className="text-sm font-semibold text-teal-600 hover:underline">
             ← Back to inventory
@@ -141,6 +159,8 @@ export function PurchasingPage() {
                     setPoReference("");
                     refresh();
                     setActivePoId(po.id);
+                    setPoModalMode("edit");
+                    setPoModalOpen(true);
                   }}
                   className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
                 >
@@ -150,12 +170,40 @@ export function PurchasingPage() {
             </div>
 
             <div className="vendor-panel rounded-2xl p-6">
-              <h2 className="text-base font-semibold text-white">Purchase orders</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-base font-semibold text-white">Purchase orders</h2>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTab("active")}
+                    className={
+                      tab === "active"
+                        ? "rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                        : "rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:text-white"
+                    }
+                  >
+                    Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab("history")}
+                    className={
+                      tab === "history"
+                        ? "rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                        : "rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:text-white"
+                    }
+                  >
+                    PO History
+                  </button>
+                </div>
+              </div>
               <div className="mt-4 space-y-2">
                 {pos.length === 0 ? (
                   <p className="text-sm text-neutral-300">No purchase orders yet.</p>
                 ) : (
-                  pos.map((po) => {
+                  pos
+                    .filter((po) => (tab === "active" ? po.id === activePoId || po.status === "draft" : true))
+                    .map((po) => {
                     const s = InventoryRepo.getSupplier(po.supplierId);
                     const active = po.id === activePoId;
                     return (
@@ -204,6 +252,21 @@ export function PurchasingPage() {
                 <p className="mt-6 text-sm text-neutral-300">No active purchase order selected.</p>
               ) : (
                 <>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-neutral-400">
+                      Use the form view for A4 print/download and full editing.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPoModalMode(activePo.status === "draft" ? "edit" : "view");
+                        setPoModalOpen(true);
+                      }}
+                      className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:border-teal-500 hover:text-teal-300"
+                    >
+                      Open PO form
+                    </button>
+                  </div>
                   {activePo.status === "draft" ? (
                     <fieldset className="mt-4 space-y-2 rounded-lg border border-white/10 p-3">
                       <legend className="px-1 text-xs font-semibold text-neutral-400">Purchase on</legend>
@@ -431,10 +494,10 @@ export function PurchasingPage() {
             <div className="vendor-panel-soft rounded-2xl p-6">
               <h2 className="text-base font-semibold text-white">Notes</h2>
               <p className="mt-2 text-sm text-neutral-300">
-                Purchasing is fully local. <strong className="text-neutral-200">Cash</strong> POs settle from COGS
-                Reserves when you mark ordered. <strong className="text-neutral-200">Credit</strong> POs post to
-                supplier creditors under Financial → Creditors and CashPlan payables. Receiving uses the PO lines for
-                stock.
+                A PO records intent and settlement when you mark ordered (
+                <strong className="text-neutral-200">Cash</strong> from COGS Reserves;{" "}
+                <strong className="text-neutral-200">Credit</strong> to supplier creditors). It does not change on-hand
+                quantities — receiving posts inventory when stock physically arrives.
               </p>
             </div>
           </div>

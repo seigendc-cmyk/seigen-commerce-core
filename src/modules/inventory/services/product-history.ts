@@ -2,7 +2,6 @@ import { listStockAdjustmentEntries } from "@/modules/financial/services/stock-a
 import { listSales } from "@/modules/pos/services/sales-service";
 import type { Id } from "@/modules/inventory/types/models";
 import { InventoryRepo } from "./inventory-repo";
-import { PurchasingService } from "./purchasing-service";
 import { ReceivingService } from "./receiving-service";
 
 export type ProductHistoryFilters = {
@@ -14,7 +13,7 @@ export type ProductHistoryFilters = {
   branchId?: Id | "all";
 };
 
-export type ProductHistoryKind = "sale" | "stock_adjustment" | "purchase_order" | "goods_receipt";
+export type ProductHistoryKind = "sale" | "stock_adjustment" | "purchase_order" | "goods_receipt" | "opening_balance";
 
 export type ProductHistoryRow = {
   id: string;
@@ -53,8 +52,10 @@ function branchMatches(rowBranch: Id, filter: Id | "all" | undefined): boolean {
 }
 
 /**
- * Unified timeline: POS sales, stocktake adjustments, purchase orders, and goods receipts
- * for one product. Sorted newest first.
+ * Unified timeline: POS sales, stocktake adjustments, and goods receipts (stock-in) for one product.
+ * Sorted newest first.
+ *
+ * Note: Purchase orders are intentionally excluded from product reports (they are non-stock instructions).
  */
 export function buildProductHistory(productId: Id, f: ProductHistoryFilters = {}): ProductHistoryRow[] {
   const rows: ProductHistoryRow[] = [];
@@ -95,28 +96,6 @@ export function buildProductHistory(productId: Id, f: ProductHistoryFilters = {}
       qtyDelta: adj.qtyVariance,
       amount: adj.valueImpact,
       ref: adj.reference?.trim() || adj.stocktakeId.slice(-12),
-    });
-  }
-
-  for (const po of PurchasingService.listPurchaseOrders()) {
-    if (po.status === "draft" || po.status === "cancelled") continue;
-    if (!branchMatches(po.branchId, f.branchId)) continue;
-    const line = po.items.find((it) => it.productId === productId);
-    if (!line) continue;
-    const at = po.updatedAt || po.createdAt;
-    if (!isoInDateRange(at, f.fromDate, f.toDate)) continue;
-    const ref = po.reference?.trim() || po.id.slice(-10);
-    rows.push({
-      id: `po_${po.id}_${line.id}`,
-      at,
-      branchId: po.branchId,
-      branchName: branchName(po.branchId),
-      kind: "purchase_order",
-      title: "Purchase order",
-      detail: `Ordered ${line.orderedQty} · est ${line.expectedUnitCost.toFixed(2)} · ${po.status.replace(/_/g, " ")} · ${po.paymentTerms === "credit" ? "Credit" : "Cash"}`,
-      qtyDelta: line.orderedQty,
-      amount: roundMoney(line.orderedQty * line.expectedUnitCost),
-      ref,
     });
   }
 

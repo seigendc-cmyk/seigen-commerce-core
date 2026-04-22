@@ -1,5 +1,6 @@
 import { browserLocalJson } from "@/modules/inventory/services/storage";
 import { InventoryRepo } from "@/modules/inventory/services/inventory-repo";
+import { appendBalancedJournalWithLedgers, COA_CASH_CODE, COA_BANK_CODE } from "@/modules/financial/services/general-journal-ledger";
 
 const NS = { namespace: "seigen.cashplan", version: 1 as const };
 
@@ -9,16 +10,38 @@ export type ReservePriority = "low" | "medium" | "high" | "critical";
 
 export type ReserveHealth = "healthy" | "underfunded" | "at_risk" | "on_track";
 
+export type ReserveStatus = "draft" | "active" | "paused" | "funded" | "in_use" | "completed" | "closed";
+
+export type ReservePurposeMode = "strict" | "flexible";
+
+export type ReserveFundingSourceKind = "cash_book" | "bank" | "manual_topup" | "reserve_transfer";
+export type ReserveFundingDestinationKind = "cash_book" | "bank" | "procurement_payment" | "manual" | "reserve_transfer";
+
+export type ReserveAllotmentLine = {
+  id: string;
+  title: string;
+  plannedAmount: number;
+  fundedAmount: number;
+  spentAmount: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CashPlanReserveAccount = {
   id: string;
   branchId: string;
   name: string;
   purpose: string;
+  purposeMode: ReservePurposeMode;
   targetAmount: number | null;
   dueDate: string | null;
   priority: ReservePriority;
   notes: string;
+  status: ReserveStatus;
   balance: number;
+  /** Structured budget (allotments) */
+  allotments: ReserveAllotmentLine[];
   createdAt: string;
   updatedAt: string;
   lastDepositAt: string | null;
@@ -45,6 +68,12 @@ export type ReserveMovement = {
   balanceAfter: number;
   memo: string;
   actorLabel: string;
+  sourceKind?: ReserveFundingSourceKind;
+  sourceRef?: string;
+  destinationKind?: ReserveFundingDestinationKind;
+  destinationRef?: string;
+  allotmentLineId?: string;
+  journalBatchId?: string;
   peerReserveId?: string;
   approvalRequestId?: string;
 };
@@ -83,6 +112,9 @@ type AccountsDb = { accounts: CashPlanReserveAccount[] };
 type MovementsDb = { entries: ReserveMovement[] };
 type QueueDb = { requests: ReserveApprovalRequest[] };
 type BehaviorDb = { signals: ReserveBehaviorSignal[] };
+
+export const COA_RESERVE_CONTROL_CODE = "1035";
+export const RESERVE_LARGE_WITHDRAWAL_THRESHOLD = 1000;
 
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
@@ -274,6 +306,7 @@ export function countReservesDueWithinDays(days: number): number {
 export function createReserveAccount(input: {
   name: string;
   purpose: string;
+  purposeMode?: ReservePurposeMode;
   targetAmount: number | null;
   dueDate: string | null;
   priority: ReservePriority;
@@ -289,6 +322,7 @@ export function createReserveAccount(input: {
     branchId: branch,
     name: input.name.trim() || "Reserve",
     purpose: input.purpose.trim() || "Commitment",
+    purposeMode: input.purposeMode === "flexible" ? "flexible" : "strict",
     targetAmount:
       input.targetAmount != null && Number.isFinite(input.targetAmount) && input.targetAmount > 0
         ? roundMoney(input.targetAmount)
@@ -296,7 +330,9 @@ export function createReserveAccount(input: {
     dueDate: input.dueDate?.trim() ? input.dueDate.trim().slice(0, 10) : null,
     priority: input.priority,
     notes: input.notes.trim(),
+    status: "active",
     balance: 0,
+    allotments: [],
     createdAt: ts,
     updatedAt: ts,
     lastDepositAt: null,
@@ -316,6 +352,8 @@ export function fundReserve(input: {
   amount: number;
   memo: string;
   actorLabel: string;
+  sourceKind?: ReserveFundingSourceKind;
+  sourceRef?: string;
 }): { ok: true; account: CashPlanReserveAccount } | { ok: false; error: string } {
   const amt = roundMoney(input.amount);
   if (amt <= 0) return { ok: false, error: "Enter a positive amount." };
@@ -323,22 +361,124 @@ export function fundReserve(input: {
   const a = db.accounts.find((x) => x.id === input.reserveId);
   if (!a) return { ok: false, error: "Reserve not found." };
   const actor = input.actorLabel.trim() || "User";
+
+  // Accounting: move from cash/bank into reserve control.
+  const src = input.sourceKind ?? "cash_book";
+  const memo = input.memo.trim() || "Reserve funding";
+  const lines =
+    src === "bank"
+      ? [
+          { accountCode: COA_RESERVE_CONTROL_CODE, accountName: "Reserve control", debit: amt, credit: 0 },
+          { accountCode: COA_BANK_CODE, accountName: "Bank", debit: 0, credit: amt },
+        ]
+      : src === "manual_topup"
+        ? [
+            { accountCode: COA_RESERVE_CONTROL_CODE, accountName: "Reserve control", debit: amt, credit: 0 },
+            { accountCode: "9999", accountName: "Manual funding source", debit: 0, credit: amt },
+          ]
+        : [
+            { accountCode: COA_RESERVE_CONTROL_CODE, accountName: "Reserve control", debit: amt, credit: 0 },
+            { accountCode: COA_CASH_CODE, accountName: "Cashbook", debit: 0, credit: amt },
+          ];
+  const jr = appendBalancedJournalWithLedgers({
+    memo: `${memo} · ${a.name}`,
+    source: "journal",
+    lines,
+    cashCode: COA_CASH_CODE,
+    bankCode: COA_BANK_CODE,
+    preparedBy: actor,
+  });
+  if (!jr.ok) return { ok: false, error: jr.error };
+
   a.balance = roundMoney(a.balance + amt);
   a.updatedAt = new Date().toISOString();
   a.lastDepositAt = a.updatedAt;
   a.lastChangedByLabel = actor;
+  if (a.status === "draft") a.status = "active";
+  if (a.targetAmount != null && a.targetAmount > 0 && a.balance + 1e-9 >= a.targetAmount) a.status = "funded";
   setAccountsDb(db);
   appendMovement({
     reserveId: a.id,
     kind: "deposit",
     amount: amt,
     balanceAfter: a.balance,
-    memo: input.memo.trim() || "Funding",
+    memo,
     actorLabel: actor,
+    sourceKind: src,
+    sourceRef: input.sourceRef?.trim() || undefined,
+    journalBatchId: jr.batch.id,
   });
   appendBehaviorSignal("reserve_funded", `Funded ${a.name}: ${amt.toFixed(2)}`, a.id, "info");
   notifyReservesUpdated();
   return { ok: true, account: a };
+}
+
+export function addReserveAllotmentLine(input: {
+  reserveId: string;
+  title: string;
+  plannedAmount: number;
+  notes?: string;
+  actorLabel: string;
+}): { ok: true; account: CashPlanReserveAccount } | { ok: false; error: string } {
+  const db = getAccountsDb();
+  const a = db.accounts.find((x) => x.id === input.reserveId);
+  if (!a) return { ok: false, error: "Reserve not found." };
+  const title = input.title.trim();
+  if (!title) return { ok: false, error: "Line title required." };
+  const planned = roundMoney(Math.max(0, Number(input.plannedAmount)));
+  const ts = new Date().toISOString();
+  a.allotments.push({
+    id: uid("ral"),
+    title,
+    plannedAmount: planned,
+    fundedAmount: 0,
+    spentAmount: 0,
+    notes: input.notes?.trim() || undefined,
+    createdAt: ts,
+    updatedAt: ts,
+  });
+  a.updatedAt = ts;
+  a.lastChangedByLabel = input.actorLabel.trim() || "User";
+  setAccountsDb(db);
+  notifyReservesUpdated();
+  return { ok: true, account: a };
+}
+
+export function updateReserveAllotmentLine(input: {
+  reserveId: string;
+  lineId: string;
+  patch: Partial<Pick<ReserveAllotmentLine, "title" | "plannedAmount" | "notes">>;
+  actorLabel: string;
+}): { ok: true } | { ok: false; error: string } {
+  const db = getAccountsDb();
+  const a = db.accounts.find((x) => x.id === input.reserveId);
+  if (!a) return { ok: false, error: "Reserve not found." };
+  const ln = a.allotments.find((x) => x.id === input.lineId);
+  if (!ln) return { ok: false, error: "Allotment line not found." };
+  if (input.patch.title != null) ln.title = input.patch.title.trim() || ln.title;
+  if (input.patch.plannedAmount != null) ln.plannedAmount = roundMoney(Math.max(0, Number(input.patch.plannedAmount)));
+  if (input.patch.notes != null) ln.notes = input.patch.notes.trim() || undefined;
+  ln.updatedAt = new Date().toISOString();
+  a.updatedAt = ln.updatedAt;
+  a.lastChangedByLabel = input.actorLabel.trim() || "User";
+  setAccountsDb(db);
+  notifyReservesUpdated();
+  return { ok: true };
+}
+
+export function removeReserveAllotmentLine(input: { reserveId: string; lineId: string; actorLabel: string }): { ok: true } | { ok: false; error: string } {
+  const db = getAccountsDb();
+  const a = db.accounts.find((x) => x.id === input.reserveId);
+  if (!a) return { ok: false, error: "Reserve not found." };
+  const idx = a.allotments.findIndex((x) => x.id === input.lineId);
+  if (idx < 0) return { ok: false, error: "Allotment line not found." };
+  if ((a.allotments[idx]!.spentAmount ?? 0) > 1e-9) return { ok: false, error: "Cannot remove a line with spend history." };
+  a.allotments.splice(idx, 1);
+  a.updatedAt = new Date().toISOString();
+  a.lastChangedByLabel = input.actorLabel.trim() || "User";
+  setAccountsDb(db);
+  notifyReservesUpdated();
+  return { ok: true };
 }
 
 export function transferBetweenReserves(input: {
@@ -416,6 +556,9 @@ export function submitReserveWithdrawalRequest(input: {
   amount: number;
   reason: string;
   requestedByLabel: string;
+  destinationKind?: ReserveFundingDestinationKind;
+  destinationRef?: string;
+  allotmentLineId?: string;
 }): { ok: true; request: ReserveApprovalRequest } | { ok: false; error: string } {
   const amt = roundMoney(input.amount);
   if (amt <= 0) return { ok: false, error: "Enter a positive amount." };
@@ -511,19 +654,38 @@ function applyWithdrawalOrRelease(req: ReserveApprovalRequest, kind: "withdrawal
   const a = db.accounts.find((x) => x.id === req.reserveId);
   if (!a || a.balance + 1e-9 < amt) return false;
   const ts = new Date().toISOString();
+
+  // Accounting: move from reserve control back to cashbook (default) for withdrawals/releases.
+  const memo = req.reason?.trim() || (kind === "release_to_free_cash" ? "Release from reserve" : "Reserve withdrawal");
+  const jr = appendBalancedJournalWithLedgers({
+    memo: `${memo} · ${a.name}`,
+    source: "journal",
+    lines: [
+      { accountCode: COA_CASH_CODE, accountName: "Cashbook", debit: amt, credit: 0 },
+      { accountCode: COA_RESERVE_CONTROL_CODE, accountName: "Reserve control", debit: 0, credit: amt },
+    ],
+    cashCode: COA_CASH_CODE,
+    bankCode: COA_BANK_CODE,
+    preparedBy: "Approver",
+  });
+  if (!jr.ok) return false;
+
   a.balance = roundMoney(a.balance - amt);
   a.updatedAt = ts;
   a.lastWithdrawalAt = ts;
   a.lastChangedByLabel = "Approver";
+  if (a.balance <= 1e-9 && a.status === "in_use") a.status = "completed";
   setAccountsDb(db);
   appendMovement({
     reserveId: a.id,
     kind: kind === "release_to_free_cash" ? "release_to_free_cash" : "withdrawal",
     amount: -amt,
     balanceAfter: a.balance,
-    memo: req.reason,
+    memo,
     actorLabel: req.requestedByLabel,
     approvalRequestId: req.id,
+    destinationKind: kind === "release_to_free_cash" ? "manual" : "manual",
+    journalBatchId: jr.batch.id,
   });
   appendBehaviorSignal(
     kind === "release_to_free_cash" ? "reserve_released" : "reserve_withdrawn",

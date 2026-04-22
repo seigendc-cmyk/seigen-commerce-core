@@ -1,5 +1,5 @@
 import type { GoodsReceipt, GoodsReceiptItem, Id, PurchaseOrderStatus } from "../types/models";
-import { InventoryRepo } from "./inventory-repo";
+import { branchAllowsStockOperations, InventoryRepo, isHeadOfficeBranch } from "./inventory-repo";
 import { PurchasingService } from "./purchasing-service";
 import { browserLocalJson } from "./storage";
 
@@ -48,6 +48,7 @@ export function getReceivedQtyByProductForPo(purchaseOrderId: Id): Map<Id, numbe
   return receivedByProduct;
 }
 
+/** Inbound stock is transactional here; purchase orders do not change on-hand until receipt lines post. */
 export const ReceivingService = {
   listReceipts(): GoodsReceipt[] {
     return getReceivingDb()
@@ -114,6 +115,9 @@ export const ReceivingService = {
     if (!branch) {
       throw new Error("Select a valid warehouse / shop to receive into.");
     }
+    if (isHeadOfficeBranch(branch) || !branchAllowsStockOperations(branch)) {
+      throw new Error("Receiving cannot post stock into Head office. Select a warehouse or trading shop.");
+    }
 
     const receipt: GoodsReceipt = {
       id: uid("grn"),
@@ -129,7 +133,7 @@ export const ReceivingService = {
     db.receipts.push(receipt);
     setReceivingDb(db);
 
-    // Stock updates.
+    // Inventory: only receiving increments on-hand (PO itself is non-stock).
     for (const item of receiptItems) {
       InventoryRepo.incrementStock(targetBranchId, item.productId, item.receivedQty);
     }

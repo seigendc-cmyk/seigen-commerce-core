@@ -3,6 +3,7 @@ import { postStockAdjustmentJournalFromLines } from "@/modules/financial/service
 import { appendStockAdjustmentEntries } from "@/modules/financial/services/stock-adjustment-ledger";
 import type { Id } from "@/modules/inventory/types/models";
 import { InventoryRepo } from "./inventory-repo";
+import { requireStockOpsBranch } from "./stock-mutation-policy";
 import { browserLocalJson } from "./storage";
 
 const NS = { namespace: "seigen.inventory", version: 1 as const };
@@ -79,6 +80,11 @@ export function postStocktake(input: PostStocktakeInput): PostStocktakeResult {
   const memo = input.memo.trim();
   if (input.counts.length === 0) {
     return { ok: false, error: "Add at least one counted line." };
+  }
+
+  const branchCheck = requireStockOpsBranch(input.branchId as Id);
+  if (!branchCheck.ok) {
+    return { ok: false, error: branchCheck.error };
   }
 
   const sessionId = uid("st");

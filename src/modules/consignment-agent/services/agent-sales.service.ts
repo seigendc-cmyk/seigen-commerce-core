@@ -6,6 +6,8 @@ import { addOrIncrementFromProduct, emptyCart, incrementLine, removeLine, setLin
 import { validateStockForCart } from "@/modules/pos/services/stock-validation";
 import { listShifts, upsertSale } from "./agent-storage";
 import type { AgentSale } from "../types/agent";
+import { isConsignmentStallBranch } from "@/modules/consignment/services/consignment-operations";
+import { requireTradingBranch } from "@/modules/inventory/services/stock-mutation-policy";
 
 function uid(p: string): string {
   return `${p}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
@@ -59,6 +61,13 @@ export function completeAgentCashSale(input: {
   paymentMethod: "cash" | "momo" | "bank_transfer";
   customerLabel?: string;
 }): { ok: true; sale: AgentSale } | { ok: false; error: string } {
+  // Guardrails: agent sales must occur at a valid consignment stall (trading-like branch), never head office.
+  if (!isConsignmentStallBranch(input.stallBranchId)) {
+    return { ok: false, error: "Invalid stall branch for agent sale." };
+  }
+  const br = requireTradingBranch(input.stallBranchId, "Agent sales must be recorded at a trading stall branch.");
+  if (!br.ok) return { ok: false, error: br.error };
+
   if (input.cart.items.length < 1) return { ok: false, error: "Add at least one item." };
   const err = validateStockForCart(input.cart, input.stallBranchId);
   if (err) return { ok: false, error: err };

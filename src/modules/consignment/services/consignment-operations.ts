@@ -3,6 +3,12 @@ import { InventoryRepo } from "@/modules/inventory/services/inventory-repo";
 import { getConsignmentAgreementByStallBranchId, getConsignmentAgreement } from "@/modules/consignment/services/consignment-agreements";
 import { appendConsignmentCustodyEntry, latestInvoiceUnitCostForStallProduct } from "@/modules/consignment/services/consignment-custody-ledger";
 import { recordDebtorCreditInvoice } from "@/modules/financial/services/debtors-ledger";
+import { requireStockOpsBranch, requireTradingBranch } from "@/modules/inventory/services/stock-mutation-policy";
+import {
+  emitConsignmentStockIssuedBrainEvent,
+  emitConsignmentStockMissingBrainEvent,
+  emitConsignmentStockSoldBrainEvent,
+} from "@/modules/brain/brain-actions";
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -35,6 +41,13 @@ export function issueConsignmentStock(input: {
 }): { ok: true } | { ok: false; error: string } {
   const ag = getConsignmentAgreement(input.agreementId);
   if (!ag || !ag.isActive) return { ok: false, error: "Agreement not found or inactive." };
+
+  // Guardrails: principal must be a stock-ops branch (warehouse or trading), stall must be a trading branch.
+  const principal = requireStockOpsBranch(ag.principalBranchId, "Principal branch cannot hold consignment stock.");
+  if (!principal.ok) return { ok: false, error: principal.error };
+  const stall = requireTradingBranch(ag.stallBranchId, "Consignment stall must be a trading branch (not head office).");
+  if (!stall.ok) return { ok: false, error: stall.error };
+
   const qty = Math.floor(Number(input.qty));
   const cost = round2(Number(input.invoiceUnitCost));
   if (!Number.isFinite(qty) || qty <= 0) return { ok: false, error: "Quantity must be > 0." };
@@ -60,6 +73,26 @@ export function issueConsignmentStock(input: {
     kind: "issue_to_agent",
     ref: input.ref,
     memo: input.memo,
+  });
+
+  // Brain event (append-only): consignment stock issued to agent custody
+  void emitConsignmentStockIssuedBrainEvent({
+    agentId: ag.agentId,
+    consignmentId: ag.id,
+    productId: input.productId,
+    quantity: qty,
+    value: round2(qty * cost),
+    occurredAt: new Date().toISOString(),
+    correlationId: `consignment_issue_${ag.id}_${input.productId}_${Date.now()}`,
+    principalBranchId: ag.principalBranchId,
+    stallBranchId: ag.stallBranchId,
+    payload: {
+      kind: "issue_to_agent",
+      ref: input.ref ?? null,
+      memo: input.memo ?? null,
+      invoice_unit_cost: cost,
+      agreement_id: ag.id,
+    },
   });
 
   return { ok: true };
@@ -97,6 +130,28 @@ export function postAgentDebtorFromConsignmentSale(input: {
       ref: input.receiptNumber,
       memo: `POS sale ${input.receiptNumber}`,
       createdAt: input.createdAt,
+    });
+
+    // Brain event (append-only): consignment stock sold from agent custody.
+    void emitConsignmentStockSoldBrainEvent({
+      agentId: ag.agentId,
+      consignmentId: ag.id,
+      productId: l.productId,
+      quantity: l.qty,
+      value: round2(unit * l.qty),
+      occurredAt: input.createdAt,
+      correlationId: `consignment_sale_${input.saleId}_${l.productId}`,
+      principalBranchId: ag.principalBranchId,
+      stallBranchId: ag.stallBranchId,
+      saleId: input.saleId,
+      receiptNumber: input.receiptNumber,
+      unitCost: unit,
+      payload: {
+        kind: "sale",
+        agreement_id: ag.id,
+        principal_branch_id: ag.principalBranchId,
+        stall_branch_id: ag.stallBranchId,
+      },
     });
   }
 
@@ -150,6 +205,26 @@ export function postAgentDebtorForShortage(input: {
     ref: input.reference,
     memo: "Shortage (stock adjustment)",
     createdAt: input.createdAt,
+  });
+
+  // Brain event (append-only): consignment stock missing/shortage at agent stall.
+  void emitConsignmentStockMissingBrainEvent({
+    agentId: ag.agentId,
+    consignmentId: ag.id,
+    productId: input.productId,
+    quantity: qty,
+    value: total,
+    occurredAt: input.createdAt ?? new Date().toISOString(),
+    correlationId: `consignment_missing_${ag.id}_${input.productId}_${input.reference}`,
+    principalBranchId: ag.principalBranchId,
+    stallBranchId: ag.stallBranchId,
+    payload: {
+      kind: "loss",
+      reference: input.reference,
+      memo: "Shortage (stock adjustment)",
+      invoice_unit_cost: unit,
+      agreement_id: ag.id,
+    },
   });
 }
 

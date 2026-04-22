@@ -10,6 +10,7 @@ export type VendorSettingsTabId =
   | "ideliver"
   | "currency"
   | "devices"
+  | "terminal"
   | "banks"
   | "cash-book"
   | "bank-accounts"
@@ -32,6 +33,7 @@ export const VENDOR_SETTINGS_TABS: SettingsTabDef[] = [
   { id: "ideliver", label: "iDeliver", hint: "External verified drivers & compliance" },
   { id: "currency", label: "Currency", hint: "Base, reporting & transaction currencies" },
   { id: "devices", label: "Devices", hint: "Printers, scanners, drawers, displays" },
+  { id: "terminal", label: "Terminal", hint: "Mobile terminal access codes & profiles" },
   { id: "banks", label: "Banks", hint: "Institutions & provider connections" },
   { id: "cash-book", label: "Cash Book", hint: "Cash ledger — link to Financial CashBook" },
   { id: "bank-accounts", label: "Bank accounts", hint: "Bank ledger — link to Financial CashBook" },
@@ -119,6 +121,15 @@ export const VENDOR_SETTINGS_PANEL_COPY: Record<VendorSettingsTabId, SettingsPan
     pillars: [
       "Choose device type, display name, branch, and register or station.",
       "Record connection details so support can match hardware to the right till or back-office machine.",
+    ],
+  },
+  terminal: {
+    title: "Mobile terminal",
+    lead:
+      "Create terminal profiles and access codes so staff can open the lightweight POS portal at /terminal without the full vendor dashboard.",
+    pillars: [
+      "Generate a code or type your own; bind each profile to a branch and optional PIN.",
+      "Operators use /terminal/&lt;code&gt; or the Terminal access landing page with the same code.",
     ],
   },
   banks: {

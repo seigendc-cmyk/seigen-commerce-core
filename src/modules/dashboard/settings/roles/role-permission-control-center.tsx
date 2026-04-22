@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { DASHBOARD_MENU_PERMISSIONS } from "@/modules/dashboard/settings/roles/dashboard-menu-permissions";
 import {
   PERMISSION_CATEGORIES,
@@ -37,6 +37,10 @@ function riskOrder(r: PermissionRisk): number {
   if (r === "high") return 1;
   if (r === "medium") return 2;
   return 3;
+}
+
+function isFullAccessPresetRoleId(roleId: string) {
+  return roleId === "preset-sysadmin" || roleId === "preset-owner";
 }
 
 export function RolePermissionControlCenter() {
@@ -101,6 +105,7 @@ export function RolePermissionControlCenter() {
   }
 
   function setRolePermission(roleId: string, p: PermissionDef, on: boolean) {
+    if (isFullAccessPresetRoleId(roleId)) return;
     const role = roles.find((r) => r.id === roleId);
     if (!role) return;
     const prev = new Set(role.permissionCodes ?? []);
@@ -130,6 +135,7 @@ export function RolePermissionControlCenter() {
   }
 
   function setRoleMenu(roleId: string, menuId: string, on: boolean) {
+    if (isFullAccessPresetRoleId(roleId)) return;
     const role = roles.find((r) => r.id === roleId);
     if (!role) return;
     const prev = new Set(role.allowedMenuIds ?? []);
@@ -158,8 +164,8 @@ export function RolePermissionControlCenter() {
       <div className="vendor-panel-soft rounded-2xl px-5 py-4 text-sm text-neutral-300">
         <p className="font-medium text-white">Role &amp; Permission Control Center</p>
         <p className="mt-1 text-neutral-400">
-          Categories on the left, permission matrix in the center, and user-level overrides below. Changes are audited
-          locally and are backend-ready for Supabase enforcement later.
+          Categories on the left, permission matrix in the center, grouped menu access below that, and user-level
+          overrides at the bottom. Changes are audited locally and are backend-ready for Supabase enforcement later.
         </p>
       </div>
 
@@ -324,7 +330,8 @@ export function RolePermissionControlCenter() {
                       const set = new Set(r.permissionCodes ?? []);
                       const checked = set.has(p.code);
                       const parentOk = (p.parents ?? []).every((x) => set.has(x));
-                      const disabled = p.parents?.length ? !parentOk && !checked : false;
+                      const lockedFull = isFullAccessPresetRoleId(r.id);
+                      const disabled = lockedFull || (p.parents?.length ? !parentOk && !checked : false);
                       return (
                         <td key={r.id} className="px-3 py-2 text-center">
                           <input
@@ -332,7 +339,13 @@ export function RolePermissionControlCenter() {
                             checked={checked}
                             disabled={disabled}
                             onChange={(e) => setRolePermission(r.id, p, e.target.checked)}
-                            title={disabled ? "Enable parent permissions first" : undefined}
+                            title={
+                              lockedFull
+                                ? "SysAdmin and Owner always carry the full permission set"
+                                : disabled
+                                  ? "Enable parent permissions first"
+                                  : undefined
+                            }
                             className="h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-teal-600 focus:ring-teal-500 disabled:opacity-40"
                           />
                         </td>
@@ -352,9 +365,10 @@ export function RolePermissionControlCenter() {
           </div>
 
           <div className="mt-5 rounded-xl border border-white/10 bg-neutral-900/20 p-4">
-            <p className="text-sm font-semibold text-white">Sidebar menu (legacy mapping)</p>
+            <p className="text-sm font-semibold text-white">Menu access by role</p>
             <p className="mt-1 text-xs text-neutral-400">
-              Menu access remains for backward compatibility. Long-term, routes/services will enforce permission keys.
+              Toggle which sidebar destinations each role can see. Overview stays on for every role. Pair these with
+              permission keys above so staff only open modules they are allowed to use.
             </p>
             <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
               <table className="w-full min-w-[980px] text-left text-sm">
@@ -369,28 +383,52 @@ export function RolePermissionControlCenter() {
                   </tr>
                 </thead>
                 <tbody>
-                  {DASHBOARD_MENU_PERMISSIONS.map((m) => (
-                    <tr key={m.id} className="border-b border-white/[0.06] last:border-0">
-                      <td className="px-3 py-2">
-                        <div className="font-semibold text-neutral-100">{m.label}</div>
-                        <div className="mt-0.5 font-mono text-[11px] text-neutral-500">{m.id}</div>
-                      </td>
-                      {visibleRoles.map((r) => {
-                        const checked = r.allowedMenuIds.includes(m.id);
-                        return (
-                          <td key={r.id} className="px-3 py-2 text-center">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={m.id === "overview"}
-                              onChange={(e) => setRoleMenu(r.id, m.id, e.target.checked)}
-                              className="h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-teal-600 focus:ring-teal-500 disabled:opacity-50"
-                            />
+                  {DASHBOARD_MENU_PERMISSIONS.map((m, idx) => {
+                    const section = m.section;
+                    const prevSection = idx > 0 ? DASHBOARD_MENU_PERMISSIONS[idx - 1]!.section : "";
+                    const showSectionHeader = section !== prevSection;
+                    return (
+                      <Fragment key={m.id}>
+                        {showSectionHeader ? (
+                          <tr className="border-b border-white/[0.06] bg-white/[0.06]">
+                            <td
+                              colSpan={1 + visibleRoles.length}
+                              className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400"
+                            >
+                              {section}
+                            </td>
+                          </tr>
+                        ) : null}
+                        <tr className="border-b border-white/[0.06] last:border-0">
+                          <td className="px-3 py-2">
+                            <div className="font-semibold text-neutral-100">{m.label}</div>
+                            <div className="mt-0.5 font-mono text-[11px] text-neutral-500">{m.id}</div>
+                            <div className="mt-0.5 text-[11px] text-neutral-500">{m.description}</div>
                           </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                          {visibleRoles.map((r) => {
+                            const checked = r.allowedMenuIds.includes(m.id);
+                            const lockedFull = isFullAccessPresetRoleId(r.id);
+                            return (
+                              <td key={r.id} className="px-3 py-2 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  disabled={m.id === "overview" || lockedFull}
+                                  onChange={(e) => setRoleMenu(r.id, m.id, e.target.checked)}
+                                  title={
+                                    lockedFull
+                                      ? "SysAdmin and Owner always have every menu route enabled"
+                                      : undefined
+                                  }
+                                  className="h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-teal-600 focus:ring-teal-500 disabled:opacity-50"
+                                />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

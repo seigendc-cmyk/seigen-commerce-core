@@ -17,6 +17,7 @@ import {
   verifyStaffAccessCode,
   VENDOR_SYSADMIN_STARTUP_CODE,
 } from "@/modules/dashboard/settings/staff/staff-access-codes";
+import { HEAD_OFFICE_BRANCH_ID, InventoryRepo, isHeadOfficeBranch } from "@/modules/inventory/services/inventory-repo";
 
 const STAFF_SESSION_KEY = "seigen.staff.session";
 /** Keep signed in across normal work weeks without retyping after refresh. */
@@ -58,6 +59,7 @@ export function StaffSessionGate({ children }: { children: React.ReactNode }) {
   const { staffMembers } = useVendorStaff();
   const [staffId, setStaffId] = useState<string>(() => getActiveStaffId() ?? "");
   const [code, setCode] = useState("");
+  const [branchId, setBranchId] = useState<string>(() => InventoryRepo.getActiveBranchId() ?? "");
   const [status, setStatus] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
   const [codesTick, setCodesTick] = useState(0);
@@ -84,6 +86,17 @@ export function StaffSessionGate({ children }: { children: React.ReactNode }) {
     const next = active ?? staffMembers[0]?.id ?? "";
     if (next) setStaffId(next);
   }, [staffId, staffMembers]);
+
+  const branches = useMemo(() => InventoryRepo.listBranches(), []);
+  const selectedBranch = useMemo(() => InventoryRepo.getBranch(branchId) ?? null, [branchId]);
+  const sysAdminLockedToHeadOffice = staff?.id === SYSADMIN_STAFF_ID;
+
+  useEffect(() => {
+    // SysAdmin must land in Admin Office (Head office).
+    if (!sysAdminLockedToHeadOffice) return;
+    setBranchId(HEAD_OFFICE_BRANCH_ID);
+    InventoryRepo.setActiveBranchId(HEAD_OFFICE_BRANCH_ID);
+  }, [sysAdminLockedToHeadOffice]);
 
   useLayoutEffect(() => {
     const s = readSession();
@@ -117,6 +130,12 @@ export function StaffSessionGate({ children }: { children: React.ReactNode }) {
     if (!ok) {
       setStatus("Invalid access code.");
       return;
+    }
+    // Persist chosen shop/branch for the desk session.
+    if (sysAdminLockedToHeadOffice) {
+      InventoryRepo.setActiveBranchId(HEAD_OFFICE_BRANCH_ID);
+    } else if (branchId) {
+      InventoryRepo.setActiveBranchId(branchId);
     }
     setActiveStaffId(staff.id);
     writeSession(staff.id);
@@ -200,6 +219,35 @@ export function StaffSessionGate({ children }: { children: React.ReactNode }) {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="Enter code"
                 />
+              </label>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="block text-xs text-slate-600">
+                <span className="mb-1 block font-semibold text-slate-800">Shop / Branch</span>
+                <select
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-500/25 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                  value={sysAdminLockedToHeadOffice ? HEAD_OFFICE_BRANCH_ID : branchId}
+                  disabled={sysAdminLockedToHeadOffice}
+                  onChange={(e) => {
+                    setBranchId(e.target.value);
+                    InventoryRepo.setActiveBranchId(e.target.value);
+                  }}
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                      {isHeadOfficeBranch(b) ? " · Admin Office" : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-1 text-[11px] text-slate-500">
+                  {sysAdminLockedToHeadOffice
+                    ? "SysAdmin signs into Admin Office (Head office)."
+                    : selectedBranch
+                      ? `You will land on Desk scoped to “${selectedBranch.name}”.`
+                      : "Pick the shop/branch you want to operate."}
+                </div>
               </label>
             </div>
 

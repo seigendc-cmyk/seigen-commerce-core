@@ -95,6 +95,7 @@ export const PurchasingService = {
     const po = getPurchasingDb().purchaseOrders.find((p) => p.id === id);
     return po ? normalizePurchaseOrder(po) : undefined;
   },
+  /** Draft PO: instructional memo only — no stock impact until goods are received. */
   createPurchaseOrder(input: {
     supplierId: Id;
     branchId?: Id;
@@ -136,8 +137,25 @@ export const PurchasingService = {
     setPurchasingDb(db);
     return normalizePurchaseOrder(po);
   },
+  updatePurchaseOrderMeta(
+    poId: Id,
+    patch: Partial<Pick<PurchaseOrder, "supplierId" | "branchId" | "reference" | "notes">>,
+  ): PurchaseOrder {
+    const db = getPurchasingDb();
+    const po = db.purchaseOrders.find((x) => x.id === poId);
+    if (!po) throw new Error("Purchase order not found");
+    if (po.status !== "draft") throw new Error("Only draft purchase orders can be edited.");
+    if (patch.supplierId !== undefined) po.supplierId = patch.supplierId;
+    if (patch.branchId !== undefined) po.branchId = patch.branchId;
+    if (patch.reference !== undefined) po.reference = patch.reference?.trim() ? patch.reference.trim() : undefined;
+    if (patch.notes !== undefined) po.notes = patch.notes?.trim() ? patch.notes.trim() : undefined;
+    po.updatedAt = nowIso();
+    setPurchasingDb(db);
+    return normalizePurchaseOrder(po);
+  },
   /**
-   * Mark draft PO ordered: credit → creditors ledger; cash → pay from COGS Reserves.
+   * Mark draft PO ordered: records settlement intent (credit → creditors; cash → COGS Reserves) and input tax.
+   * Does not post inventory — stock updates only when receiving posts goods against this PO.
    */
   markOrdered(poId: Id): { ok: true; purchaseOrder: PurchaseOrder } | { ok: false; error: string } {
     const db = getPurchasingDb();
@@ -232,5 +250,31 @@ export const PurchasingService = {
     po.updatedAt = nowIso();
     setPurchasingDb(db);
     return normalizePurchaseOrder(po);
+  },
+  cloneToDraft(poId: Id): PurchaseOrder {
+    const src = this.getPurchaseOrder(poId);
+    if (!src) throw new Error("Purchase order not found");
+    const db = getPurchasingDb();
+    const ts = nowIso();
+    const next: PurchaseOrder = {
+      id: uid("po"),
+      supplierId: src.supplierId,
+      branchId: src.branchId,
+      status: "draft",
+      paymentTerms: src.paymentTerms === "credit" ? "credit" : "cash",
+      reference: src.reference ? `${src.reference} (copy)` : undefined,
+      notes: src.notes,
+      items: src.items.map((it) => ({
+        id: uid("poi"),
+        productId: it.productId,
+        orderedQty: it.orderedQty,
+        expectedUnitCost: it.expectedUnitCost,
+      })),
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    db.purchaseOrders.push(next);
+    setPurchasingDb(db);
+    return normalizePurchaseOrder(next);
   },
 };

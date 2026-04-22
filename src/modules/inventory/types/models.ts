@@ -161,7 +161,10 @@ export type PurchaseOrderStatus =
   | "received"
   | "cancelled";
 
-/** Cash: settlement reduces COGS Reserves at order. Credit: increases supplier (creditor) AP in CashPlan / Financial. */
+/**
+ * Cash: settlement reduces COGS Reserves when the PO is marked ordered. Credit: increases supplier AP.
+ * PO lines are instructional; on-hand stock increases only when goods are received (Receiving).
+ */
 export type PurchasePaymentTerms = "cash" | "credit";
 
 export type PurchaseOrderItem = {
@@ -171,6 +174,10 @@ export type PurchaseOrderItem = {
   expectedUnitCost: number;
 };
 
+/**
+ * Instructional purchase memo: initiates supplier / settlement intent. Does not change on-hand stock.
+ * Inventory becomes transactional in Receiving when stock is physically received against this PO.
+ */
 export type PurchaseOrder = {
   id: Id;
   supplierId: Id;

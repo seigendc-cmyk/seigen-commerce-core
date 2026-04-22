@@ -40,12 +40,86 @@ export type ListBrainEventsResult =
   | { ok: true; events: BrainEventRow[] }
   | { ok: false; error: string };
 
+async function getAuthedTenantContext(): Promise<
+  | { ok: true; supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>; userId: string; tenantId: string }
+  | { ok: true; skipped: true; reason: string }
+  | { ok: false; error: string }
+> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+  return { ok: true, supabase, userId: user.id, tenantId: membership.tenant_id as string };
+}
+
+export async function emitBrainEventForWorkspace(input: {
+  eventType: string;
+  module: string;
+  tenantId: string;
+  branchId: string | null;
+  actorId: string;
+  actorType: "user" | "system" | "integration";
+  entityType: string;
+  entityId: string;
+  occurredAt: string;
+  severity: BrainEventSeverity;
+  correlationId: string;
+  payload: Record<string, unknown>;
+}): Promise<EmitBrainEventResult> {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+
+  // Defensive: enforce tenant match (do not allow caller to spoof tenantId).
+  if (input.tenantId !== ctx.tenantId) {
+    return { ok: false, error: "Tenant mismatch for brain event emission" };
+  }
+
+  const { data, error } = await ctx.supabase
+    .from("brain_events")
+    .insert({
+      event_type: input.eventType,
+      module: input.module,
+      tenant_id: input.tenantId,
+      branch_id: input.branchId,
+      actor_id: input.actorId,
+      actor_type: input.actorType,
+      entity_type: input.entityType,
+      entity_id: input.entityId,
+      occurred_at: input.occurredAt,
+      severity: input.severity,
+      correlation_id: input.correlationId,
+      payload: input.payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id as string };
+}
+
 /**
  * Record a completed POS sale — primary vertical slice for Brain memory.
  */
 export async function emitPosSaleCompletedBrainEvent(input: {
   sale: Sale;
   correlationId: string;
+  /** Optional metadata (e.g. terminalSessionId) merged into payload; same event type `pos.sale.completed`. */
+  payloadExtras?: Record<string, unknown>;
 }): Promise<EmitBrainEventResult> {
   if (!isSupabaseConfigured()) {
     return { ok: true, skipped: true, reason: "Supabase not configured" };
@@ -90,6 +164,9 @@ export async function emitPosSaleCompletedBrainEvent(input: {
     })),
     payments: s.payments.map((p) => ({ method: p.method, amount: p.amount })),
     ideliverProviderId: s.ideliverProviderId,
+    ...(s.surface ? { surface: s.surface } : {}),
+    ...(s.terminalProfileId ? { terminalProfileId: s.terminalProfileId } : {}),
+    ...(input.payloadExtras ?? {}),
   };
 
   const { data, error } = await supabase
@@ -115,6 +192,319 @@ export async function emitPosSaleCompletedBrainEvent(input: {
     return { ok: false, error: error.message };
   }
   return { ok: true, id: data.id as string };
+}
+
+export async function emitPosSaleVoidedBrainEvent(input: {
+  sale: Sale;
+  correlationId: string;
+  reason: string;
+  /** Optional metadata merged into payload. */
+  payloadExtras?: Record<string, unknown>;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const s = input.sale;
+  const payload = {
+    receiptNumber: s.receiptNumber,
+    saleId: s.id,
+    branchId: s.branchId,
+    status: s.status,
+    voidedAt: s.voidedAt ?? null,
+    voidedReason: input.reason.slice(0, 280),
+    lineCount: s.lines.length,
+    payments: s.payments.map((p) => ({ method: p.method, amount: p.amount })),
+    ...(s.surface ? { surface: s.surface } : {}),
+    ...(s.terminalProfileId ? { terminalProfileId: s.terminalProfileId } : {}),
+    ...(input.payloadExtras ?? {}),
+  };
+
+  const occurredAt = s.voidedAt ?? new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.POS_SALE_VOIDED,
+      module: "pos",
+      tenant_id: membership.tenant_id as string,
+      branch_id: s.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "sale",
+      entity_id: s.id,
+      occurred_at: occurredAt,
+      severity: "warning",
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitPosReceiptReprintedBrainEvent(input: {
+  sale: Sale;
+  correlationId: string;
+  reason: string;
+  /** Optional metadata merged into payload. */
+  payloadExtras?: Record<string, unknown>;
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const s = input.sale;
+  const payload = {
+    receiptNumber: s.receiptNumber,
+    saleId: s.id,
+    branchId: s.branchId,
+    status: s.status,
+    reprintReason: input.reason.slice(0, 280),
+    ...(s.surface ? { surface: s.surface } : {}),
+    ...(s.terminalProfileId ? { terminalProfileId: s.terminalProfileId } : {}),
+    ...(input.payloadExtras ?? {}),
+  };
+
+  const occurredAt = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.POS_RECEIPT_REPRINTED,
+      module: "pos",
+      tenant_id: membership.tenant_id as string,
+      branch_id: s.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "receipt",
+      entity_id: s.receiptNumber,
+      occurred_at: occurredAt,
+      severity: "notice",
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitPosSaleReturnedBrainEvent(input: {
+  sale: Sale;
+  returnId: string;
+  correlationId: string;
+  reason: string;
+  /** Optional metadata merged into payload. */
+  payloadExtras?: Record<string, unknown>;
+  returnPayload: {
+    subtotal: number;
+    salesTaxAmount?: number;
+    taxableNetBase?: number;
+    lineCount: number;
+    lines: Array<{ productId: string; sku: string; name: string; qty: number; lineTotal: number }>;
+  };
+}): Promise<EmitBrainEventResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "Supabase not configured" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: true, skipped: true, reason: "No authenticated user" };
+  }
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.tenant_id) {
+    return { ok: true, skipped: true, reason: "No workspace (tenant)" };
+  }
+
+  const s = input.sale;
+  const payload = {
+    receiptNumber: s.receiptNumber,
+    saleId: s.id,
+    returnId: input.returnId,
+    branchId: s.branchId,
+    status: s.status,
+    returnReason: input.reason.slice(0, 280),
+    return: input.returnPayload,
+    ...(s.surface ? { surface: s.surface } : {}),
+    ...(s.terminalProfileId ? { terminalProfileId: s.terminalProfileId } : {}),
+    ...(input.payloadExtras ?? {}),
+  };
+
+  const occurredAt = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("brain_events")
+    .insert({
+      event_type: BrainEventTypes.POS_SALE_RETURNED,
+      module: "pos",
+      tenant_id: membership.tenant_id as string,
+      branch_id: s.branchId,
+      actor_id: user.id,
+      actor_type: "user",
+      entity_type: "sale",
+      entity_id: s.id,
+      occurred_at: occurredAt,
+      severity: "warning",
+      correlation_id: input.correlationId,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id as string };
+}
+
+export async function emitTerminalShiftOpenedBrainEvent(input: {
+  tenantId: string;
+  branchId: string;
+  terminalProfileId: string;
+  shiftId: string;
+  correlationId: string;
+  openingFloat: number;
+  occurredAt: string;
+  payloadExtras?: Record<string, unknown>;
+}): Promise<EmitBrainEventResult> {
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.TERMINAL_SHIFT_OPENED,
+    module: "terminal",
+    tenantId: input.tenantId,
+    branchId: input.branchId,
+    actorId: input.payloadExtras?.actorId ? String(input.payloadExtras.actorId) : "terminal_local",
+    actorType: "system",
+    entityType: "terminal_shift",
+    entityId: input.shiftId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: {
+      terminalProfileId: input.terminalProfileId,
+      openingFloat: input.openingFloat,
+      ...(input.payloadExtras ?? {}),
+    },
+  });
+}
+
+export async function emitTerminalShiftClosedBrainEvent(input: {
+  tenantId: string;
+  branchId: string;
+  terminalProfileId: string;
+  shiftId: string;
+  correlationId: string;
+  closingCount: number;
+  expectedCashAtClose: number | null;
+  cashVariance: number | null;
+  varianceReason: string | null;
+  occurredAt: string;
+  payloadExtras?: Record<string, unknown>;
+}): Promise<EmitBrainEventResult> {
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.TERMINAL_SHIFT_CLOSED,
+    module: "terminal",
+    tenantId: input.tenantId,
+    branchId: input.branchId,
+    actorId: input.payloadExtras?.actorId ? String(input.payloadExtras.actorId) : "terminal_local",
+    actorType: "system",
+    entityType: "terminal_shift",
+    entityId: input.shiftId,
+    occurredAt: input.occurredAt,
+    severity: "warning",
+    correlationId: input.correlationId,
+    payload: {
+      terminalProfileId: input.terminalProfileId,
+      closingCount: input.closingCount,
+      expectedCashAtClose: input.expectedCashAtClose,
+      cashVariance: input.cashVariance,
+      varianceReason: input.varianceReason,
+      ...(input.payloadExtras ?? {}),
+    },
+  });
+}
+
+export async function emitTerminalCashMovementRecordedBrainEvent(input: {
+  tenantId: string;
+  branchId: string;
+  terminalProfileId: string;
+  shiftId: string;
+  movementId: string;
+  kind: "cash_in" | "cash_out" | "paid_out";
+  amount: number;
+  memo: string;
+  correlationId: string;
+  occurredAt: string;
+  payloadExtras?: Record<string, unknown>;
+}): Promise<EmitBrainEventResult> {
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.TERMINAL_CASH_MOVEMENT_RECORDED,
+    module: "terminal",
+    tenantId: input.tenantId,
+    branchId: input.branchId,
+    actorId: input.payloadExtras?.actorId ? String(input.payloadExtras.actorId) : "terminal_local",
+    actorType: "system",
+    entityType: "terminal_cash_movement",
+    entityId: input.movementId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: {
+      terminalProfileId: input.terminalProfileId,
+      shiftId: input.shiftId,
+      kind: input.kind,
+      amount: input.amount,
+      memo: input.memo,
+      ...(input.payloadExtras ?? {}),
+    },
+  });
 }
 
 /**
@@ -694,6 +1084,575 @@ export async function emitCashPlanReserveFundedBrainEvent(input: {
     return { ok: false, error: error.message };
   }
   return { ok: true, id: data.id as string };
+}
+
+// -------------------------------------------------------------------------------------------------
+// Consignment BI emitters (append-only, auditable, rules/scoring attach later)
+// -------------------------------------------------------------------------------------------------
+
+type ConsignmentBiEmitBase = {
+  principalVendorId?: string;
+  agentId: string;
+  consignmentId: string;
+  productId?: string | null;
+  quantity?: number | null;
+  value?: number | null;
+  occurredAt: string;
+  correlationId: string;
+  payload?: Record<string, unknown>;
+  principalBranchId?: string | null;
+  stallBranchId?: string | null;
+};
+
+function consignmentBiBasePayload(input: {
+  tenantId: string;
+  principalVendorId: string;
+  agentId: string;
+  consignmentId: string;
+  productId: string | null;
+  quantity: number | null;
+  value: number | null;
+  occurredAt: string;
+  correlationId: string;
+  payload: Record<string, unknown>;
+}) {
+  return {
+    tenant_id: input.tenantId,
+    principal_vendor_id: input.principalVendorId,
+    agent_id: input.agentId,
+    consignment_id: input.consignmentId,
+    product_id: input.productId,
+    quantity: input.quantity,
+    value: input.value,
+    occurred_at: input.occurredAt,
+    correlation_id: input.correlationId,
+    payload: input.payload,
+  };
+}
+
+export async function emitConsignmentStockIssuedBrainEvent(input: ConsignmentBiEmitBase & { issueInvoiceId?: string | null }) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: {
+      ...(input.payload ?? {}),
+      from_branch_id: input.principalBranchId ?? null,
+      to_stall_branch_id: input.stallBranchId ?? null,
+      issue_invoice_id: input.issueInvoiceId ?? null,
+    },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_STOCK_ISSUED,
+    module: "consignment",
+    tenantId,
+    branchId: input.principalBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_stock_movement",
+    entityId: input.consignmentId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_STOCK_ISSUED, ...payload },
+  });
+}
+
+export async function emitConsignmentStockReceivedBrainEvent(input: ConsignmentBiEmitBase) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: input.payload ?? {},
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_STOCK_RECEIVED,
+    module: "consignment",
+    tenantId,
+    branchId: input.principalBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_stock_movement",
+    entityId: input.consignmentId,
+    occurredAt: input.occurredAt,
+    severity: "info",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_STOCK_RECEIVED, ...payload },
+  });
+}
+
+export async function emitConsignmentStockSoldBrainEvent(
+  input: ConsignmentBiEmitBase & { saleId?: string | null; receiptNumber?: string | null; unitCost?: number | null; unitPrice?: number | null },
+) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: {
+      ...(input.payload ?? {}),
+      sale_id: input.saleId ?? null,
+      receipt_number: input.receiptNumber ?? null,
+      stall_branch_id: input.stallBranchId ?? null,
+      unit_cost: input.unitCost ?? null,
+      unit_price: input.unitPrice ?? null,
+    },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_STOCK_SOLD,
+    module: "consignment",
+    tenantId,
+    branchId: input.stallBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_sale",
+    entityId: input.saleId ?? input.consignmentId,
+    occurredAt: input.occurredAt,
+    severity: "info",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_STOCK_SOLD, ...payload },
+  });
+}
+
+export async function emitConsignmentStockReturnedBrainEvent(input: ConsignmentBiEmitBase) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: input.payload ?? {},
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_STOCK_RETURNED,
+    module: "consignment",
+    tenantId,
+    branchId: input.principalBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_stock_movement",
+    entityId: input.consignmentId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_STOCK_RETURNED, ...payload },
+  });
+}
+
+export async function emitConsignmentStockDamagedBrainEvent(input: ConsignmentBiEmitBase) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: input.payload ?? {},
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_STOCK_DAMAGED,
+    module: "consignment",
+    tenantId,
+    branchId: input.stallBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_stock_movement",
+    entityId: input.consignmentId,
+    occurredAt: input.occurredAt,
+    severity: "warning",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_STOCK_DAMAGED, ...payload },
+  });
+}
+
+export async function emitConsignmentStockMissingBrainEvent(input: ConsignmentBiEmitBase) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: input.payload ?? {},
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_STOCK_MISSING,
+    module: "consignment",
+    tenantId,
+    branchId: input.stallBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_stock_movement",
+    entityId: input.consignmentId,
+    occurredAt: input.occurredAt,
+    severity: "warning",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_STOCK_MISSING, ...payload },
+  });
+}
+
+export async function emitConsignmentSettlementCreatedBrainEvent(input: ConsignmentBiEmitBase & { settlementId: string }) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: { ...(input.payload ?? {}), settlement_id: input.settlementId },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_SETTLEMENT_CREATED,
+    module: "consignment",
+    tenantId,
+    branchId: input.principalBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_settlement",
+    entityId: input.settlementId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_SETTLEMENT_CREATED, ...payload },
+  });
+}
+
+export async function emitConsignmentSettlementPaidBrainEvent(input: ConsignmentBiEmitBase & { settlementId: string }) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: { ...(input.payload ?? {}), settlement_id: input.settlementId },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_SETTLEMENT_PAID,
+    module: "consignment",
+    tenantId,
+    branchId: input.principalBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_settlement",
+    entityId: input.settlementId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_SETTLEMENT_PAID, ...payload },
+  });
+}
+
+export async function emitConsignmentSettlementOverdueBrainEvent(input: ConsignmentBiEmitBase & { settlementId: string; daysOverdue?: number | null }) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: { ...(input.payload ?? {}), settlement_id: input.settlementId, days_overdue: input.daysOverdue ?? null },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_SETTLEMENT_OVERDUE,
+    module: "consignment",
+    tenantId,
+    branchId: input.principalBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_settlement",
+    entityId: input.settlementId,
+    occurredAt: input.occurredAt,
+    severity: "warning",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_SETTLEMENT_OVERDUE, ...payload },
+  });
+}
+
+export async function emitConsignmentReconciliationPerformedBrainEvent(
+  input: ConsignmentBiEmitBase & { reconciliationId: string; varianceQty?: number | null; varianceValue?: number | null },
+) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: {
+      ...(input.payload ?? {}),
+      reconciliation_id: input.reconciliationId,
+      variance_qty: input.varianceQty ?? null,
+      variance_value: input.varianceValue ?? null,
+    },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_RECONCILIATION_PERFORMED,
+    module: "consignment",
+    tenantId,
+    branchId: input.stallBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_reconciliation",
+    entityId: input.reconciliationId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_RECONCILIATION_PERFORMED, ...payload },
+  });
+}
+
+export async function emitConsignmentDisputeCreatedBrainEvent(input: ConsignmentBiEmitBase & { disputeId: string; disputeKind?: string | null }) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: { ...(input.payload ?? {}), dispute_id: input.disputeId, dispute_kind: input.disputeKind ?? null },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_DISPUTE_CREATED,
+    module: "consignment",
+    tenantId,
+    branchId: input.principalBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_dispute",
+    entityId: input.disputeId,
+    occurredAt: input.occurredAt,
+    severity: "warning",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_DISPUTE_CREATED, ...payload },
+  });
+}
+
+export async function emitConsignmentReconciliationSubmittedBrainEvent(
+  input: ConsignmentBiEmitBase & { reconciliationId: string; discrepancyCount?: number | null },
+) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: {
+      ...(input.payload ?? {}),
+      reconciliation_id: input.reconciliationId,
+      discrepancy_count: input.discrepancyCount ?? null,
+    },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_RECONCILIATION_SUBMITTED,
+    module: "consignment",
+    tenantId,
+    branchId: input.stallBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_reconciliation",
+    entityId: input.reconciliationId,
+    occurredAt: input.occurredAt,
+    severity: "notice",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_RECONCILIATION_SUBMITTED, ...payload },
+  });
+}
+
+export async function emitConsignmentDocumentValidatedBrainEvent(
+  input: ConsignmentBiEmitBase & {
+    documentId: string;
+    documentType: string;
+    validationStatus: string;
+  },
+) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: {
+      ...(input.payload ?? {}),
+      document_id: input.documentId,
+      document_type: input.documentType,
+      validation_status: input.validationStatus,
+    },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_DOCUMENT_VALIDATED,
+    module: "consignment",
+    tenantId,
+    branchId: input.stallBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_document",
+    entityId: input.documentId,
+    occurredAt: input.occurredAt,
+    severity: "info",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_DOCUMENT_VALIDATED, ...payload },
+  });
+}
+
+export async function emitConsignmentEvidenceGapBrainEvent(
+  input: ConsignmentBiEmitBase & {
+    gapCodes: string[];
+    reconciliationId?: string | null;
+    settlementId?: string | null;
+  },
+) {
+  const ctx = await getAuthedTenantContext();
+  if (!ctx.ok) return ctx;
+  if ("skipped" in ctx) return ctx;
+  const tenantId = ctx.tenantId;
+  const principalVendorId = input.principalVendorId ?? tenantId;
+  const payload = consignmentBiBasePayload({
+    tenantId,
+    principalVendorId,
+    agentId: input.agentId,
+    consignmentId: input.consignmentId,
+    productId: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    value: input.value ?? null,
+    occurredAt: input.occurredAt,
+    correlationId: input.correlationId,
+    payload: {
+      ...(input.payload ?? {}),
+      gap_codes: input.gapCodes,
+      reconciliation_id: input.reconciliationId ?? null,
+      settlement_id: input.settlementId ?? null,
+    },
+  });
+  return emitBrainEventForWorkspace({
+    eventType: BrainEventTypes.CONSIGNMENT_EVIDENCE_GAP,
+    module: "consignment",
+    tenantId,
+    branchId: input.stallBranchId ?? null,
+    actorId: ctx.userId,
+    actorType: "user",
+    entityType: "consignment_evidence",
+    entityId: input.reconciliationId ?? input.settlementId ?? input.consignmentId,
+    occurredAt: input.occurredAt,
+    severity: "warning",
+    correlationId: input.correlationId,
+    payload: { event: BrainEventTypes.CONSIGNMENT_EVIDENCE_GAP, ...payload },
+  });
 }
 
 export async function emitCashPlanReserveApprovalRequestedBrainEvent(input: {

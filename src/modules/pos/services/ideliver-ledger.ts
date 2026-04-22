@@ -56,6 +56,8 @@ export function recordIdeliverDeliveryCredit(input: {
 }): void {
   if (input.deliveryFee <= 0) return;
   const db = getDb();
+  // Best-effort idempotency per sale id (avoid duplicates on retries).
+  if (db.entries.some((e) => e.saleId === input.saleId && e.providerId === input.providerId)) return;
   db.entries.push({
     id: uid(),
     createdAt: new Date().toISOString(),
@@ -67,6 +69,16 @@ export function recordIdeliverDeliveryCredit(input: {
     note: "Delivery fee accrual — reconcile in iDeliver / AP when banking is wired.",
   });
   setDb(db);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("seigen-ideliver-ledger-updated"));
+  }
+}
+
+export function removeIdeliverCreditsForSale(saleId: string): void {
+  const db = getDb();
+  const next = db.entries.filter((e) => e.saleId !== saleId);
+  if (next.length === db.entries.length) return;
+  setDb({ entries: next });
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("seigen-ideliver-ledger-updated"));
   }

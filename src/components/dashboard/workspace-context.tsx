@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useMemo } from "react";
 import { writeDemoSession } from "@/lib/demo-session";
 import type { DashboardWorkspacePayload } from "@/lib/workspace/types";
+import { setBrowserLocalTenantScope } from "@/modules/inventory/services/storage";
+import { flushBrainOutbox } from "@/modules/brain/brain-outbox";
 
 const WorkspaceContext = createContext<DashboardWorkspacePayload | null>(null);
 
@@ -23,6 +25,8 @@ export function WorkspaceProvider({
 
   useEffect(() => {
     if (!workspace?.tenant || !workspace.subscription) return;
+    setBrowserLocalTenantScope(workspace.tenant.id);
+    void flushBrainOutbox();
     writeDemoSession({
       businessName: workspace.tenant.name,
       contactName: workspace.tenant.contact_name ?? "Primary contact",
@@ -31,6 +35,12 @@ export function WorkspaceProvider({
       planId: workspace.subscription.plan_id,
     });
   }, [workspace]);
+
+  useEffect(() => {
+    const onOnline = () => void flushBrainOutbox();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, []);
 
   const value = useMemo(() => workspace, [workspace]);
 

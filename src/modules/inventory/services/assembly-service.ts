@@ -1,5 +1,5 @@
 import type { Id, Product } from "../types/models";
-import { InventoryRepo } from "./inventory-repo";
+import { branchAllowsStockOperations, InventoryRepo, isHeadOfficeBranch } from "./inventory-repo";
 
 export type AssemblyResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -40,13 +40,16 @@ export function executeAssemblyBuild(parentProductId: Id, qtyToBuild: number): A
     return { ok: false, error: "Define assembly components on the product BOM before building stock." };
   }
 
-  const branch = InventoryRepo.getDefaultTradingBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultWarehouseBranch();
   if (!branch) {
     return {
       ok: false,
       error:
-        "No trading shop — assembly moves stock at a store or warehouse. Add a trading branch under Inventory → Overview.",
+        "No stock branch — assembly moves stock at a trading shop or warehouse. Add a branch under Inventory → Overview.",
     };
+  }
+  if (isHeadOfficeBranch(branch) || !branchAllowsStockOperations(branch)) {
+    return { ok: false, error: "Assembly cannot move stock at Head office. Select a trading shop or warehouse." };
   }
 
   for (const line of inputs) {
@@ -118,13 +121,16 @@ export function executeDisassembly(parentProductId: Id, qtyToBreak: number): Ass
     return { ok: false, error: "Define disassembly outputs on the product BOM before breaking stock down." };
   }
 
-  const branch = InventoryRepo.getDefaultTradingBranch();
+  const branch = InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultWarehouseBranch();
   if (!branch) {
     return {
       ok: false,
       error:
-        "No trading shop — disassembly moves stock at a store or warehouse. Add a trading branch under Inventory → Overview.",
+        "No stock branch — disassembly moves stock at a trading shop or warehouse. Add a branch under Inventory → Overview.",
     };
+  }
+  if (isHeadOfficeBranch(branch) || !branchAllowsStockOperations(branch)) {
+    return { ok: false, error: "Disassembly cannot move stock at Head office. Select a trading shop or warehouse." };
   }
   const parentOnHand = InventoryRepo.getStock(branch.id, parentProductId)?.onHandQty ?? 0;
   if (parentOnHand + 1e-9 < qtyToBreak) {

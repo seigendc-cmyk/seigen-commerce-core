@@ -1,4 +1,4 @@
-export type DeskAuditSourceKind = "notification" | "approval" | "system" | "security";
+export type DeskAuditSourceKind = "notification" | "approval" | "system" | "security" | "terminal";
 
 export type DeskAuditEvent = {
   id: string;

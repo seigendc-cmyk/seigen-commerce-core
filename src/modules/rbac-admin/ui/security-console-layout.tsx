@@ -11,6 +11,7 @@ const NAV = [
   { href: "/dashboard/desk/security/roles", label: "Roles" },
   { href: "/dashboard/desk/security/matrix", label: "Permission matrix" },
   { href: "/dashboard/desk/security/users", label: "Users & access" },
+  { href: "/dashboard/desk/security/terminal-access", label: "Terminal access" },
   { href: "/dashboard/desk/security/audit", label: "Audit history" },
   { href: "/dashboard/desk/security/registry", label: "Permission registry" },
   { href: "/dashboard/desk/security/governance/approvals", label: "Governance" },

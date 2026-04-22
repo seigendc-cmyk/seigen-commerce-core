@@ -19,7 +19,7 @@ export function ExecutiveOverviewPage() {
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
-      if (e.key === posSalesStorageKey || e.key === inventoryKeys.db) {
+      if (e.key === posSalesStorageKey() || e.key === inventoryKeys.db()) {
         setTick((t) => t + 1);
       }
     };

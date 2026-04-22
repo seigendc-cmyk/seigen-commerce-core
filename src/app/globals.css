@@ -100,6 +100,67 @@ body:has([data-vendor-app]) {
   box-shadow: 0 0 0 1000px var(--vendor-field-bg) inset;
 }
 
+/**
+ * POS workspace — light panels + charcoal data-log text (scoped under `data-pos-light`)
+ */
+[data-pos-light] {
+  --pos-charcoal: #36454f;
+  --pos-panel-surface: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --pos-panel-border: rgb(203 213 225 / 0.95);
+  --pos-panel-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 10px 28px rgb(15 23 42 / 0.07);
+  --pos-field-bg: #ffffff;
+  --pos-field-fg: var(--pos-charcoal);
+  --pos-field-border: rgb(148 163 184 / 0.55);
+  --pos-field-placeholder: rgb(71 85 105 / 0.85);
+  --pos-field-focus: rgb(45 212 191 / 0.65);
+  --pos-field-focus-ring: rgb(20 184 166 / 0.28);
+}
+
+[data-pos-light] .vendor-panel {
+  color-scheme: light;
+  background: var(--pos-panel-surface);
+  border: 1px solid var(--pos-panel-border);
+  box-shadow: var(--pos-panel-shadow);
+  color: #0f172a;
+}
+
+[data-pos-light] .vendor-field {
+  background-color: var(--pos-field-bg);
+  color: var(--pos-field-fg);
+  border: 1px solid var(--pos-field-border);
+  font-weight: 500;
+}
+
+[data-pos-light] .vendor-field::placeholder {
+  color: var(--pos-field-placeholder);
+}
+
+[data-pos-light] .vendor-field:focus,
+[data-pos-light] .vendor-field:focus-visible {
+  border-color: var(--pos-field-focus);
+  box-shadow: 0 0 0 2px var(--pos-field-focus-ring);
+}
+
+[data-pos-light] .vendor-field:-webkit-autofill,
+[data-pos-light] .vendor-field:-webkit-autofill:hover,
+[data-pos-light] .vendor-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--pos-charcoal);
+  caret-color: var(--pos-charcoal);
+  -webkit-box-shadow: 0 0 0 1000px var(--pos-field-bg) inset;
+  box-shadow: 0 0 0 1000px var(--pos-field-bg) inset;
+}
+
+/** Secondary / log-style copy on POS (SKU lines, totals labels, storage keys) */
+[data-pos-light] .pos-data-log {
+  color: var(--pos-charcoal);
+  font-weight: 500;
+}
+
+[data-pos-light] .pos-data-log-muted {
+  color: rgb(54 69 79 / 0.82);
+  font-weight: 500;
+}
+
 .vendor-empty {
   border: 1px solid rgb(148 163 184 / 0.2);
   background: rgb(255 255 255 / 0.06);

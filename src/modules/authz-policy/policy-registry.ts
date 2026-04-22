@@ -5,6 +5,7 @@ import type { ExecutionPolicyRow, ThresholdType } from "./types";
 /** In-memory fallback when DB unavailable or row missing (mirrors migration seed). */
 export const STATIC_DEFAULT_POLICIES: ExecutionPolicyRow[] = [
   mk("pos.price.override", { requiresReason: true }),
+  mk("pos.receipt.reprint", { requiresReason: true }),
   mk("pos.price.floor_override", {
     requiresReason: true,
     requiresApproval: true,

@@ -5,14 +5,13 @@ import {
   labelForCurrencyCode,
   TRANSACTION_CURRENCY_OPTIONS,
 } from "@/modules/dashboard/settings/currency/currency-options";
-
-const DEFAULT_ENABLED = ["USD"] as const;
+import { readCurrencySettings, writeCurrencySettings } from "@/modules/financial/services/currency-settings";
 
 export function CurrencySettingsForm() {
   const [query, setQuery] = useState("");
-  const [enabledCodes, setEnabledCodes] = useState<string[]>(() => [...DEFAULT_ENABLED]);
-  const [baseCurrency, setBaseCurrency] = useState<string>("USD");
-  const [reportingCurrency, setReportingCurrency] = useState<string>("USD");
+  const [enabledCodes, setEnabledCodes] = useState<string[]>(() => readCurrencySettings().enabledCodes.slice());
+  const [baseCurrency, setBaseCurrency] = useState<string>(() => readCurrencySettings().baseCurrency);
+  const [reportingCurrency, setReportingCurrency] = useState<string>(() => readCurrencySettings().reportingCurrency);
   const [savedHint, setSavedHint] = useState<string | null>(null);
 
   const filteredOptions = useMemo(() => {
@@ -45,8 +44,9 @@ export function CurrencySettingsForm() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    writeCurrencySettings({ enabledCodes, baseCurrency, reportingCurrency });
     setSavedHint(
-      "Draft saved locally — workspace persistence and FX rates connect when your ledger API is wired.",
+      "Saved locally — FX rates and server persistence connect when your ledger API is wired.",
     );
     window.setTimeout(() => setSavedHint(null), 4000);
   }

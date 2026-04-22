@@ -1,4 +1,5 @@
 import { browserLocalJson } from "@/modules/inventory/services/storage";
+import { readOrCreateReconDeviceId } from "@/modules/reconciliation/device-id";
 
 const NS = { namespace: "seigen.pos", version: 1 as const };
 
@@ -20,12 +21,19 @@ function localDayKey(d: Date): string {
  * Next receipt number: `REC-YYYYMMDD-#####` (5-digit daily sequence, resets each local day).
  * Stored under `seigen.pos:v1:receipt_counter` (logical key `receipt_counter`).
  */
-export function nextReceiptNumber(): string {
+export function nextReceiptNumber(opts?: { terminalProfileId?: string | null }): string {
   const store = browserLocalJson(NS);
   const now = new Date();
   const dayKey = localDayKey(now);
+  const deviceId = readOrCreateReconDeviceId();
+  const deviceSuffix = String(deviceId).replace(/[^a-zA-Z0-9]+/g, "").slice(-4).toUpperCase() || "DEV";
+  const terminalSuffixRaw = String(opts?.terminalProfileId ?? "")
+    .replace(/[^a-zA-Z0-9]+/g, "")
+    .slice(-3)
+    .toUpperCase();
+  const suffix = terminalSuffixRaw ? `D${deviceSuffix}T${terminalSuffixRaw}` : `D${deviceSuffix}`;
   if (!store) {
-    return `REC-${dayKey}-${String(now.getTime()).slice(-5)}`;
+    return `REC-${dayKey}-${String(now.getTime()).slice(-5)}-${suffix}`;
   }
   const prev = store.read<CounterState>("receipt_counter", { dayKey: "", seq: 0 });
   const seq = prev.dayKey === dayKey ? prev.seq + 1 : 1;
@@ -33,7 +41,7 @@ export function nextReceiptNumber(): string {
   const y = dayKey.slice(0, 4);
   const m = dayKey.slice(4, 6);
   const d = dayKey.slice(6, 8);
-  return `REC-${y}${m}${d}-${String(seq).padStart(5, "0")}`;
+  return `REC-${y}${m}${d}-${String(seq).padStart(5, "0")}-${suffix}`;
 }
 
 export const receiptCounterStorageKey = (() => {

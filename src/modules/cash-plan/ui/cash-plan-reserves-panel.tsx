@@ -6,13 +6,17 @@ import {
   cashPlanReserveAccountsStorageKey,
   cashPlanReserveMovementsStorageKey,
   cashPlanReserveQueueStorageKey,
+  addReserveAllotmentLine,
   countReservesDueWithinDays,
   countReservesUnderfunded,
   createReserveAccount,
   fundReserve,
   listReserveAccounts,
+  listReserveMovements,
   listReserveBehaviorSignals,
   reserveAccountWithHealth,
+  type ReserveFundingSourceKind,
+  type ReservePurposeMode,
   submitReserveMetadataEditRequest,
   submitReserveReleaseRequest,
   submitReserveWithdrawalRequest,
@@ -105,6 +109,7 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
   const [cTarget, setCTarget] = useState("");
   const [cDue, setCDue] = useState("");
   const [cPriority, setCPriority] = useState<ReservePriority>("medium");
+  const [cPurposeMode, setCPurposeMode] = useState<ReservePurposeMode>("strict");
   const [cNotes, setCNotes] = useState("");
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -112,6 +117,7 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
 
   const [fundAmt, setFundAmt] = useState("");
   const [fundMemo, setFundMemo] = useState("");
+  const [fundSource, setFundSource] = useState<ReserveFundingSourceKind>("cash_book");
   const [xferTo, setXferTo] = useState("");
   const [xferAmt, setXferAmt] = useState("");
   const [xferMemo, setXferMemo] = useState("");
@@ -124,6 +130,10 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
   const [mPurpose, setMPurpose] = useState("");
   const [mReason, setMReason] = useState("");
 
+  const [lineTitle, setLineTitle] = useState("");
+  const [linePlanned, setLinePlanned] = useState("");
+  const [lineNotes, setLineNotes] = useState("");
+
   const branchName = (id: string) => InventoryRepo.getBranch(id)?.name ?? id;
 
   return (
@@ -132,8 +142,8 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
         <div>
           <h2 className="text-base font-semibold text-white">Reserve accounts (discipline)</h2>
           <p className="mt-1 max-w-3xl text-sm text-neutral-400">
-            Earmark cash for future obligations (rent, salaries, tax, buffer). Funding here is a planning movement — it
-            reduces “free” cash in CashPlan without posting to your bank or till ledgers.
+            Purpose-built reserves with budget lines and a full ledger trail. Funding posts through the journal and updates
+            cash/bank ledgers (no silent balance changes).
           </p>
         </div>
         <button
@@ -186,6 +196,17 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
                 <option value="critical">Critical</option>
               </select>
             </label>
+            <label className="block text-xs text-neutral-500">
+              Purpose mode
+              <select
+                value={cPurposeMode}
+                onChange={(e) => setCPurposeMode(e.target.value as ReservePurposeMode)}
+                className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+              >
+                <option value="strict">Strict-purpose (warn/approve off-purpose)</option>
+                <option value="flexible">Flexible-purpose (log reason + destination)</option>
+              </select>
+            </label>
             <label className="col-span-full block text-xs text-neutral-500">
               Purpose
               <input
@@ -231,6 +252,7 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
               const row = createReserveAccount({
                 name: cName,
                 purpose: cPurpose,
+                purposeMode: cPurposeMode,
                 targetAmount: cTarget.trim() && Number.isFinite(t) && t > 0 ? t : null,
                 dueDate: cDue.trim() || null,
                 priority: cPriority,
@@ -253,6 +275,7 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
               setCTarget("");
               setCDue("");
               setCNotes("");
+              setCPurposeMode("strict");
               setSelectedId(row.id);
               setCreateOpen(false);
             }}
@@ -323,11 +346,35 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
 
       {selected ? (
         <div className="mt-6 space-y-5 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-4">
-          <p className="text-sm font-semibold text-violet-100">Actions — {selected.name}</p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-violet-100">{selected.name}</p>
+              <p className="mt-0.5 text-xs text-violet-100/70">
+                {selected.purpose} · {selected.purposeMode === "strict" ? "Strict-purpose" : "Flexible-purpose"} · Status:{" "}
+                {selected.status}
+              </p>
+              {selected.targetAmount != null ? (
+                <p className="mt-1 text-xs text-violet-100/70">
+                  Target: {money(selected.targetAmount)} · Funded:{" "}
+                  {selected.targetAmount > 0 ? `${Math.min(100, (selected.balance / selected.targetAmount) * 100).toFixed(1)}%` : "—"} ·
+                  Remaining: {money(Math.max(0, selected.targetAmount - selected.balance))}
+                </p>
+              ) : null}
+            </div>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border border-white/10 bg-black/30 p-3">
               <p className="text-[10px] font-semibold uppercase text-neutral-500">Fund (immediate)</p>
+              <select
+                value={fundSource}
+                onChange={(e) => setFundSource(e.target.value as ReserveFundingSourceKind)}
+                className="mt-2 w-full rounded border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-white"
+              >
+                <option value="cash_book">Cash book</option>
+                <option value="bank">Bank</option>
+                <option value="manual_topup">Manual top-up</option>
+              </select>
               <input
                 type="number"
                 step="0.01"
@@ -354,6 +401,7 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
                     amount: n,
                     memo: fundMemo,
                     actorLabel: actor,
+                    sourceKind: fundSource,
                   });
                   if (!res.ok) return;
                   const corr =
@@ -519,6 +567,121 @@ export function CashPlanReservesPanel({ actorLabel, dataVersion }: CashPlanReser
               >
                 Submit request
               </button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+            <p className="text-[10px] font-semibold uppercase text-neutral-500">Allotment budget</p>
+            {selected.allotments.length === 0 ? (
+              <p className="mt-2 text-xs text-neutral-500">
+                No allotment lines yet. Add budget lines like airfare, accommodation, customs duty, freight, stock purchase capital.
+              </p>
+            ) : (
+              <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
+                <table className="w-full min-w-[760px] text-left text-xs">
+                  <thead className="border-b border-white/10 bg-white/[0.04] text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                    <tr>
+                      <th className="px-3 py-2">Line</th>
+                      <th className="px-3 py-2 text-right">Planned</th>
+                      <th className="px-3 py-2 text-right">Funded</th>
+                      <th className="px-3 py-2 text-right">Spent</th>
+                      <th className="px-3 py-2 text-right">Gap</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selected.allotments.map((l) => (
+                      <tr key={l.id} className="border-b border-white/[0.06] last:border-0">
+                        <td className="px-3 py-2 text-neutral-200">{l.title}</td>
+                        <td className="px-3 py-2 text-right font-mono text-neutral-200">{money(l.plannedAmount)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-neutral-300">{money(l.fundedAmount)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-neutral-300">{money(l.spentAmount)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-neutral-100">
+                          {money(Math.max(0, l.plannedAmount - l.fundedAmount))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <input
+                value={lineTitle}
+                onChange={(e) => setLineTitle(e.target.value)}
+                placeholder="Line title (e.g. Airfare)"
+                className="rounded border border-white/15 bg-black/40 px-2 py-1.5 text-sm text-white"
+              />
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                value={linePlanned}
+                onChange={(e) => setLinePlanned(e.target.value)}
+                placeholder="Planned amount"
+                className="rounded border border-white/15 bg-black/40 px-2 py-1.5 text-sm text-white"
+              />
+              <input
+                value={lineNotes}
+                onChange={(e) => setLineNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="rounded border border-white/15 bg-black/40 px-2 py-1.5 text-sm text-white"
+              />
+            </div>
+            <button
+              type="button"
+              className="mt-2 rounded-lg bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/15"
+              onClick={() => {
+                const n = parseFloat(linePlanned);
+                if (!lineTitle.trim() || !Number.isFinite(n) || n < 0) return;
+                const r = addReserveAllotmentLine({
+                  reserveId: selected.id,
+                  title: lineTitle,
+                  plannedAmount: n,
+                  notes: lineNotes,
+                  actorLabel: actor,
+                });
+                if (!r.ok) return;
+                setLineTitle("");
+                setLinePlanned("");
+                setLineNotes("");
+              }}
+            >
+              Add allotment line
+            </button>
+          </div>
+
+          <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+            <p className="text-[10px] font-semibold uppercase text-neutral-500">Transaction history</p>
+            <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
+              <table className="w-full min-w-[920px] text-left text-xs">
+                <thead className="border-b border-white/10 bg-white/[0.04] text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                  <tr>
+                    <th className="px-3 py-2">When</th>
+                    <th className="px-3 py-2">Kind</th>
+                    <th className="px-3 py-2">Source</th>
+                    <th className="px-3 py-2">Destination</th>
+                    <th className="px-3 py-2 text-right">Amount</th>
+                    <th className="px-3 py-2 text-right">Balance</th>
+                    <th className="px-3 py-2">Ref</th>
+                    <th className="px-3 py-2">Narration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listReserveMovements(selected.id, 60).map((m) => (
+                    <tr key={m.id} className="border-b border-white/[0.06] last:border-0">
+                      <td className="px-3 py-2 text-neutral-500">{new Date(m.createdAt).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-neutral-300">{m.kind}</td>
+                      <td className="px-3 py-2 text-neutral-400">{m.sourceKind ?? "—"}</td>
+                      <td className="px-3 py-2 text-neutral-400">{m.destinationKind ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono text-neutral-200">{money(m.amount)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-neutral-200">{money(m.balanceAfter)}</td>
+                      <td className="px-3 py-2 font-mono text-neutral-500">{m.journalBatchId ? m.journalBatchId.slice(-8) : "—"}</td>
+                      <td className="px-3 py-2 text-neutral-300">{m.memo}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 

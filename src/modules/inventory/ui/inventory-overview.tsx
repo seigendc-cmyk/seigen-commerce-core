@@ -15,6 +15,11 @@ import { INVENTORY_TAB_QUERY_ITEM_LIST, INVENTORY_TAB_QUERY_STOCKTAKE } from "..
 import { InventoryBranchesPanel } from "./inventory-branches-panel";
 import { InventoryProductCatalogTab } from "./inventory-product-catalog-tab";
 import { InventoryStocktakeTab } from "./inventory-stocktake-tab";
+import {
+  buildInteractiveCataloguePackageHtml,
+  downloadCataloguePackageHtml,
+  openCataloguePackageInNewWindow,
+} from "../services/interactive-catalogue-export";
 
 type Snapshot = {
   rows: ProductReadModel[];
@@ -82,10 +87,10 @@ export function InventoryOverview() {
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
       if (
-        e.key === inventoryKeys.db ||
+        e.key === inventoryKeys.db() ||
         e.key === purchasingKeys.purchasing ||
         e.key === receivingKeys.receiving ||
-        e.key === posSalesStorageKey
+        e.key === posSalesStorageKey()
       ) {
         refreshSnapshot();
       }
@@ -104,6 +109,19 @@ export function InventoryOverview() {
   }, [refreshSnapshot]);
 
   const lowStock = useMemo(() => snap.rows.filter((r) => r.onHandQty <= 0), [snap.rows]);
+
+  const defaultExportBranch = useMemo(
+    () => InventoryRepo.getDefaultTradingBranch() ?? InventoryRepo.getDefaultWarehouseBranch() ?? InventoryRepo.getDefaultBranch(),
+    [snap.rows.length],
+  );
+
+  const exportCatalogue = useCallback(() => {
+    const branch = defaultExportBranch;
+    const html = buildInteractiveCataloguePackageHtml({ branchId: branch.id, includeZeroStock: true });
+    openCataloguePackageInNewWindow(html);
+    const safe = branch.name.trim().replace(/[^\w\- ]+/g, "").replace(/\s+/g, "_");
+    downloadCataloguePackageHtml(`catalogue_package_${safe || "branch"}.html`, html);
+  }, [defaultExportBranch]);
 
   return (
     <>
@@ -219,6 +237,13 @@ export function InventoryOverview() {
               >
                 Receiving
               </Link>
+              <button
+                type="button"
+                onClick={() => exportCatalogue()}
+                className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-teal-500 hover:text-teal-600"
+              >
+                Export interactive catalogue (HTML)
+              </button>
             </div>
           </div>
         </section>

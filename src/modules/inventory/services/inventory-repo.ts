@@ -111,8 +111,32 @@ export function normalizeSupplier(s: Supplier): Supplier {
   };
 }
 
-const DEFAULT_BRANCH_ID = "branch_default";
+export const HEAD_OFFICE_BRANCH_ID = "branch_default";
 export const DEFAULT_WAREHOUSE_BRANCH_ID = "warehouse_default";
+
+const ACTIVE_BRANCH_KEY = `${NS.namespace}:v${NS.version}:active_branch_id`;
+
+function readActiveBranchId(): Id | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_BRANCH_KEY);
+    if (!raw || typeof raw !== "string") return null;
+    return raw as Id;
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveBranchId(id: Id | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!id) window.localStorage.removeItem(ACTIVE_BRANCH_KEY);
+    else window.localStorage.setItem(ACTIVE_BRANCH_KEY, String(id));
+    window.dispatchEvent(new Event("seigen-inventory-active-branch-updated"));
+  } catch {
+    // ignore
+  }
+}
 
 /** Legacy rows without `kind` behave as trading. */
 export function branchKind(b: Branch): BranchKind {
@@ -135,6 +159,12 @@ export function branchIsBillableShop(b: Branch): boolean {
 /** POS, receiving, assembly, stocktake (unless scoped elsewhere). */
 export function branchAllowsTradingOperations(b: Branch): boolean {
   return branchKind(b) === "trading";
+}
+
+/** Stock can be received/adjusted/assembled at trading shops and warehouses (never head office). */
+export function branchAllowsStockOperations(b: Branch): boolean {
+  const k = branchKind(b);
+  return k === "trading" || k === "warehouse";
 }
 
 export function normalizeBranch(b: Branch): Branch {
@@ -236,9 +266,9 @@ function getDb(): DbShape {
   const db = store.read<DbShape>("db", { branches: [], suppliers: [], products: [], stock: [] });
   let write = false;
   // Ensure Head office exists (non-trading, non-stock).
-  if (!db.branches.some((b) => b.id === DEFAULT_BRANCH_ID)) {
+  if (!db.branches.some((b) => b.id === HEAD_OFFICE_BRANCH_ID)) {
     db.branches.unshift({
-      id: DEFAULT_BRANCH_ID,
+      id: HEAD_OFFICE_BRANCH_ID,
       name: "Head office",
       kind: "head_office",
       isDefault: false,
@@ -278,7 +308,7 @@ function getDb(): DbShape {
     }
   }
   // Head office must never be the default operational store.
-  const ho = db.branches.find((b) => b.id === DEFAULT_BRANCH_ID);
+  const ho = db.branches.find((b) => b.id === HEAD_OFFICE_BRANCH_ID);
   if (ho?.isDefault) {
     ho.isDefault = false;
     write = true;
@@ -302,10 +332,10 @@ function setDb(db: DbShape) {
 }
 
 export const inventoryKeys = {
-  db: (() => {
+  db(): string {
     const store = browserLocalJson(NS);
     return store?.fullKey("db") ?? `${NS.namespace}:v${NS.version}:db`;
-  })(),
+  },
 };
 
 export const InventoryRepo = {
@@ -313,9 +343,32 @@ export const InventoryRepo = {
   listBranches(): Branch[] {
     return getDb().branches.map(normalizeBranch);
   },
+  getHeadOfficeBranch(): Branch {
+    return normalizeBranch(getDb().branches.find((b) => b.id === HEAD_OFFICE_BRANCH_ID) ?? getDb().branches[0]!);
+  },
   getBranch(id: Id): Branch | undefined {
     const b = getDb().branches.find((x) => x.id === id);
     return b ? normalizeBranch(b) : undefined;
+  },
+  getActiveBranchId(): Id | null {
+    return readActiveBranchId();
+  },
+  setActiveBranchId(id: Id | null): void {
+    // Guard: only allow selecting an existing branch, unless clearing.
+    if (id) {
+      const exists = getDb().branches.some((b) => b.id === id);
+      if (!exists) return;
+    }
+    writeActiveBranchId(id);
+  },
+  /**
+   * Active branch chosen by the user/session. May be Head office (admin) or a trading shop.
+   * Falls back to default branch when unset/invalid.
+   */
+  getActiveBranch(): Branch {
+    const id = readActiveBranchId();
+    const b = id ? getDb().branches.find((x) => x.id === id) : undefined;
+    return normalizeBranch(b ?? this.getDefaultBranch());
   },
   getDefaultBranch(): Branch {
     const branches = getDb().branches;
@@ -330,7 +383,9 @@ export const InventoryRepo = {
     const branches = getDb().branches.map(normalizeBranch);
     const trading = branches.filter((b) => branchAllowsTradingOperations(b));
     if (trading.length === 0) return undefined;
-    return trading.find((b) => b.isDefault) ?? trading[0];
+    const activeId = readActiveBranchId();
+    const active = activeId ? trading.find((b) => b.id === activeId) : undefined;
+    return active ?? trading.find((b) => b.isDefault) ?? trading[0];
   },
   /** Default non-selling warehouse used as the receiving store. */
   getDefaultWarehouseBranch(): Branch | undefined {

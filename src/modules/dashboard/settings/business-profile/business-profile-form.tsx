@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { readVendorCore, writeVendorCore } from "@/modules/dashboard/settings/vendor-core-storage";
 import {
   assessBusinessDisplayName,
   type NameAssessment,
 } from "@/modules/dashboard/settings/business-profile/business-name-rules";
 import { ComplianceDocuments } from "@/modules/dashboard/settings/business-profile/compliance-documents";
 import type { ComplianceDocSlot } from "@/modules/dashboard/settings/business-profile/compliance-documents";
+import { PassportImageSlot } from "@/modules/dashboard/settings/staff/passport-image-slot";
 import { SectorMultiCombo } from "@/modules/dashboard/settings/business-profile/sector-multi-combo";
 import {
   getDefaultTimeZoneForLocale,
@@ -45,6 +47,46 @@ function newPartnerRow(): AdditionalPartnerRow {
     phone: "",
     notes: "",
   };
+}
+
+type BusinessProfileCoreV1 = {
+  schema: "seigen_vendor_business_profile_v1";
+  legalName: string;
+  tradingName: string;
+  businessEmail: string;
+  businessPhone: string;
+  website: string;
+  registeredAddress: string;
+  locale: string;
+  timezone: string;
+  /** Optimized WebP data URL (or null). */
+  vendorLogoWebp: string | null;
+  /** Optimized WebP data URL (or null). */
+  storefrontBannerWebp: string | null;
+  /** Optional Telegram username or contact handle (no @ required). */
+  telegramHandle: string;
+};
+
+const BUSINESS_PROFILE_KEY = "business_profile";
+
+function readBusinessProfileDraft(): BusinessProfileCoreV1 {
+  const fallback: BusinessProfileCoreV1 = {
+    schema: "seigen_vendor_business_profile_v1",
+    legalName: "",
+    tradingName: "",
+    businessEmail: "",
+    businessPhone: "",
+    website: "",
+    registeredAddress: "",
+    locale: "en-US",
+    timezone: getDefaultTimeZoneForLocale("en-US"),
+    vendorLogoWebp: null,
+    storefrontBannerWebp: null,
+    telegramHandle: "",
+  };
+  const stored = readVendorCore<BusinessProfileCoreV1 | null>(BUSINESS_PROFILE_KEY, null);
+  if (!stored || stored.schema !== "seigen_vendor_business_profile_v1") return fallback;
+  return { ...fallback, ...stored };
 }
 
 function NameFieldHint({
@@ -98,6 +140,7 @@ function NameFieldHint({
 }
 
 export function BusinessProfileForm() {
+  const stored = useMemo(() => readBusinessProfileDraft(), []);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
@@ -112,8 +155,8 @@ export function BusinessProfileForm() {
     "registered" | "sole_trader" | "partnership" | "other"
   >("sole_trader");
 
-  const [legalName, setLegalName] = useState("");
-  const [tradingName, setTradingName] = useState("");
+  const [legalName, setLegalName] = useState(stored.legalName);
+  const [tradingName, setTradingName] = useState(stored.tradingName);
   /** Used when business type is not registered (single reference line). */
   const [registrationId, setRegistrationId] = useState("");
   const [jurisdiction, setJurisdiction] = useState("");
@@ -131,14 +174,17 @@ export function BusinessProfileForm() {
   const [legalNameVerificationRequested, setLegalNameVerificationRequested] = useState(false);
   const [tradingNameVerificationRequested, setTradingNameVerificationRequested] = useState(false);
 
-  const [businessEmail, setBusinessEmail] = useState("");
-  const [businessPhone, setBusinessPhone] = useState("");
-  const [website, setWebsite] = useState("");
-  const [registeredAddress, setRegisteredAddress] = useState("");
+  const [businessEmail, setBusinessEmail] = useState(stored.businessEmail);
+  const [businessPhone, setBusinessPhone] = useState(stored.businessPhone);
+  const [website, setWebsite] = useState(stored.website);
+  const [registeredAddress, setRegisteredAddress] = useState(stored.registeredAddress);
 
-  const defaultLocaleTag = "en-US";
-  const [locale, setLocale] = useState(defaultLocaleTag);
-  const [timezone, setTimezone] = useState(() => getDefaultTimeZoneForLocale(defaultLocaleTag));
+  const [locale, setLocale] = useState(stored.locale || "en-US");
+  const [timezone, setTimezone] = useState(stored.timezone || getDefaultTimeZoneForLocale(stored.locale || "en-US"));
+
+  const [vendorLogoWebp, setVendorLogoWebp] = useState<string | null>(stored.vendorLogoWebp ?? null);
+  const [storefrontBannerWebp, setStorefrontBannerWebp] = useState<string | null>(stored.storefrontBannerWebp ?? null);
+  const [telegramHandle, setTelegramHandle] = useState(stored.telegramHandle ?? "");
 
   const timeZoneIds = useMemo(() => listSortedTimeZoneIds(), []);
   const timezoneInList = timeZoneIds.includes(timezone);
@@ -166,12 +212,63 @@ export function BusinessProfileForm() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSavedHint("Draft saved locally — workspace persistence is not wired yet.");
+    const next: BusinessProfileCoreV1 = {
+      schema: "seigen_vendor_business_profile_v1",
+      legalName,
+      tradingName,
+      businessEmail,
+      businessPhone,
+      website,
+      registeredAddress,
+      locale,
+      timezone,
+      vendorLogoWebp,
+      storefrontBannerWebp,
+      telegramHandle: telegramHandle.trim().replace(/^@+/, ""),
+    };
+    writeVendorCore(BUSINESS_PROFILE_KEY, next);
+    setSavedHint("Saved locally — used by offline catalogue export and receipts.");
     window.setTimeout(() => setSavedHint(null), 4000);
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="vendor-panel rounded-2xl p-6">
+        <h2 className="text-base font-semibold text-white">Branding (storefront)</h2>
+        <p className="mt-1 text-sm text-neutral-400">
+          Logo and banner are embedded into exported offline catalogue packages (no network required).
+        </p>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <PassportImageSlot
+            label="Vendor logo"
+            description="Square/portrait works best. Optimized to WebP for offline export."
+            value={vendorLogoWebp}
+            onChange={setVendorLogoWebp}
+          />
+          <PassportImageSlot
+            label="Storefront banner"
+            description="Wide banner recommended. Optimized to WebP for offline export."
+            value={storefrontBannerWebp}
+            onChange={setStorefrontBannerWebp}
+          />
+          <div className="sm:col-span-2 max-w-md">
+            <label className="block text-sm font-medium text-neutral-200" htmlFor="bp-telegram">
+              Telegram contact (optional)
+            </label>
+            <input
+              id="bp-telegram"
+              value={telegramHandle}
+              onChange={(e) => setTelegramHandle(e.target.value)}
+              className="vendor-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
+              placeholder="e.g. seigencommerce (no @)"
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Used as a contact link in exported catalogue pages when present.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="vendor-panel rounded-2xl p-6">
         <h2 className="text-base font-semibold text-white">Personal details (vendor)</h2>
         <p className="mt-1 text-sm text-neutral-400">

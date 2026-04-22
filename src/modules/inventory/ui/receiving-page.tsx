@@ -98,7 +98,10 @@ export function ReceivingPage() {
 
   return (
     <>
-      <DashboardTopBar title="Receiving" subtitle="Receive goods against a purchase order and update local stock." />
+      <DashboardTopBar
+        title="Receiving"
+        subtitle="Post stock here when goods arrive. This is when on-hand inventory becomes transactional for inbound purchases."
+      />
       <div className="flex-1 space-y-8 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/dashboard/inventory" className="text-sm font-semibold text-teal-600 hover:underline">

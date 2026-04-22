@@ -41,13 +41,14 @@ export type CashPlanSnapshot = {
   indicativeFreeCash: number;
 
   /**
-   * CashPlan discipline reserves — earmarked in-app (local planning); does not split bank ledgers.
-   * Additive to the snapshot; does not change {@link indicativeFreeCash}.
+   * CashPlan reserves (Reserve control) — treated as a real control account movement.
+   * Funding a reserve reduces cash/bank, so this value is reported for visibility but is NOT subtracted again from
+   * {@link indicativeFreeCash}.
    */
   cashPlanReservesTotal: number;
   /**
-   * max(0, indicativeFreeCash − cashPlanReservesTotal). Illustrative “safe to use” after both COGS carve-out,
-   * supplier AP, and your own reserve earmarks.
+   * Illustrative “safe to use” after both COGS carve-out and supplier AP.
+   * (Reserve funding already reduced cash/bank, so no extra subtraction is applied here.)
    */
   indicativeSpendableAfterCashPlanReserves: number;
 };
@@ -62,9 +63,7 @@ export function getCashPlanSnapshot(): CashPlanSnapshot {
   const indicativeCashAfterPayables = roundMoney(Math.max(0, totalLiquidCash - supplierPayablesTotal));
   const indicativeFreeCash = roundMoney(Math.max(0, totalLiquidCash - cogsReservesBalance - supplierPayablesTotal));
   const cashPlanReservesTotal = totalCashPlanReserveBalances();
-  const indicativeSpendableAfterCashPlanReserves = roundMoney(
-    Math.max(0, indicativeFreeCash - cashPlanReservesTotal),
-  );
+  const indicativeSpendableAfterCashPlanReserves = indicativeFreeCash;
 
   return {
     supplierPayablesTotal,

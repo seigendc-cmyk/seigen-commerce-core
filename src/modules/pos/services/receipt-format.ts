@@ -1,4 +1,5 @@
 import { readTaxOnSalesSettings } from "@/modules/financial/services/tax-settings";
+import { baseCurrencyCode } from "@/modules/financial/services/currency-settings";
 import type { PaymentMethod, Sale } from "../types/pos";
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
@@ -86,6 +87,12 @@ export function formatReceiptPlainText(sale: Sale, meta: ReceiptFormatMeta = {})
   const branch = meta.branchName ?? sale.branchId;
   const register = meta.registerLabel ? ` · ${meta.registerLabel}` : "";
   const head = sale.status === "voided" ? "VOID RECEIPT" : "TAX INVOICE / RECEIPT";
+  const currency = baseCurrencyCode();
+  const ts = readTaxOnSalesSettings();
+  const taxRate = sale.taxRatePercentSnapshot ?? ts.ratePercent;
+  const taxOn = ts.enabled && taxRate > 0;
+  const incl = (sale.pricesTaxInclusiveSnapshot ?? ts.pricesTaxInclusive) ? "incl." : "excl.";
+  const taxInfo = taxOn ? `${ts.taxLabel} ${taxRate}% · ${incl}` : `${ts.taxLabel} · off`;
 
   const lines: string[] = [];
   lines.push(centerLine(head, W));
@@ -100,6 +107,8 @@ export function formatReceiptPlainText(sale: Sale, meta: ReceiptFormatMeta = {})
   lines.push(centerLine(sale.receiptNumber, W));
   lines.push(fill(formatReceiptWhen(sale.createdAt) + register, W));
   lines.push(lineLR(`Branch: ${branch}`, `Status: ${sale.status}`, W));
+  lines.push(lineLR("Currency", currency, W));
+  lines.push(lineLR("Tax", taxInfo, W));
   lines.push(repeatChar("-", W));
 
   for (const l of sale.lines) {
@@ -185,13 +194,28 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+export type ReceiptPrintHtmlOptions = {
+  /** Large diagonal overlay for reprints from Sales History. */
+  reprintWatermark?: boolean;
+};
+
 /**
  * Print-oriented HTML: 80ch column, professional blocks, logo, footer, fiscal + QR.
  */
-export function buildReceiptPrintHtmlDocument(sale: Sale, meta: ReceiptFormatMeta = {}): string {
+export function buildReceiptPrintHtmlDocument(
+  sale: Sale,
+  meta: ReceiptFormatMeta = {},
+  opts: ReceiptPrintHtmlOptions = {},
+): string {
   const store = meta.tradingName || meta.storeName || "seiGEN Commerce";
   const branch = meta.branchName ?? sale.branchId;
   const register = meta.registerLabel ? ` · ${meta.registerLabel}` : "";
+  const currency = baseCurrencyCode();
+  const ts = readTaxOnSalesSettings();
+  const taxRate = sale.taxRatePercentSnapshot ?? ts.ratePercent;
+  const taxOn = ts.enabled && taxRate > 0;
+  const incl = (sale.pricesTaxInclusiveSnapshot ?? ts.pricesTaxInclusive) ? "incl." : "excl.";
+  const taxInfo = taxOn ? `${ts.taxLabel} ${taxRate}% · ${incl}` : `${ts.taxLabel} · off`;
   const voidBanner = sale.status === "voided" ? `<div class="void">VOID</div>` : "";
   const logo =
     meta.logoDataUrl && meta.logoDataUrl.startsWith("data:")
@@ -240,6 +264,10 @@ export function buildReceiptPrintHtmlDocument(sale: Sale, meta: ReceiptFormatMet
         ? `<div class="qrbox"><div class="fh">Verification payload</div><pre class="fp small">${escapeHtml(meta.fiscalQrPayload)}</pre></div>`
         : "";
 
+  const wm = opts.reprintWatermark
+    ? `<div class="reprint-wm" aria-hidden="true">Reprint</div>`
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -256,6 +284,23 @@ export function buildReceiptPrintHtmlDocument(sale: Sale, meta: ReceiptFormatMet
     color: #111;
     font-size: 11px;
     line-height: 1.35;
+    position: relative;
+  }
+  .reprint-wm {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+    font-size: clamp(48px, 14vw, 120px);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: rgba(180, 60, 60, 0.11);
+    transform: rotate(-32deg);
+    pointer-events: none;
+    z-index: 1000;
+    user-select: none;
   }
   h1 { font-family: system-ui, Segoe UI, Roboto, sans-serif; font-size: 15px; margin: 0 0 6px; font-weight: 700; text-align: center; }
   .logo { text-align: center; margin-bottom: 8px; }
@@ -286,6 +331,7 @@ export function buildReceiptPrintHtmlDocument(sale: Sale, meta: ReceiptFormatMet
 </style>
 </head>
 <body>
+  ${wm}
   ${voidBanner}
   ${logo}
   <h1>${escapeHtml(store)}</h1>
@@ -294,7 +340,7 @@ export function buildReceiptPrintHtmlDocument(sale: Sale, meta: ReceiptFormatMet
   ${addr}
   ${phone}
   <div class="rn">${escapeHtml(sale.receiptNumber)}</div>
-  <div class="meta">${escapeHtml(formatReceiptWhen(sale.createdAt))}${escapeHtml(register)}<br/>Branch: ${escapeHtml(branch)} · ${escapeHtml(sale.status)}</div>
+  <div class="meta">${escapeHtml(formatReceiptWhen(sale.createdAt))}${escapeHtml(register)}<br/>Branch: ${escapeHtml(branch)} · ${escapeHtml(sale.status)} · Currency: ${escapeHtml(currency)} · Tax: ${escapeHtml(taxInfo)}</div>
   <table class="lines">${rows}</table>
   <table class="totals">
     <tr><td>Goods subtotal</td><td>${formatReceiptMoney(sale.subtotal)}</td></tr>

@@ -10,6 +10,7 @@ import { StaffSettingsForm } from "@/modules/dashboard/settings/staff/staff-sett
 import { IdeliverSettingsForm } from "@/modules/dashboard/settings/ideliver/ideliver-settings-form";
 import { CurrencySettingsForm } from "@/modules/dashboard/settings/currency/currency-settings-form";
 import { DevicesSettingsForm } from "@/modules/dashboard/settings/devices/devices-settings-form";
+import { TerminalSettingsForm } from "@/modules/dashboard/settings/terminal/terminal-settings-form";
 import { BanksSettingsForm } from "@/modules/dashboard/settings/banks/banks-settings-form";
 import { CoaSettingsForm } from "@/modules/dashboard/settings/coa/coa-settings-form";
 import { ReportWriterSettingsForm } from "@/modules/dashboard/settings/report-writer/report-writer-settings-form";
@@ -103,6 +104,8 @@ export function VendorSettingsPage() {
             <CurrencySettingsForm />
           ) : tab === "devices" ? (
             <DevicesSettingsForm />
+          ) : tab === "terminal" ? (
+            <TerminalSettingsForm />
           ) : tab === "banks" ? (
             <BanksSettingsForm />
           ) : tab === "cash-book" ? (

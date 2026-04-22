@@ -52,14 +52,14 @@ export function ReceiptOutputActions({ sale, meta, className = "" }: Props) {
           type="button"
           disabled={busy !== null}
           onClick={() => void handlePrint()}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10 disabled:opacity-50"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-800 shadow-sm hover:border-teal-500 hover:bg-slate-50 disabled:opacity-50"
         >
           {busy === "print" ? "…" : "Print"}
         </button>
         <button
           type="button"
           onClick={() => downloadReceiptTextFile(sale, meta)}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-800 shadow-sm hover:border-teal-500 hover:bg-slate-50"
         >
           .txt
         </button>
@@ -67,14 +67,14 @@ export function ReceiptOutputActions({ sale, meta, className = "" }: Props) {
           type="button"
           disabled={busy !== null}
           onClick={() => void handlePdf()}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10 disabled:opacity-50"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-800 shadow-sm hover:border-teal-500 hover:bg-slate-50 disabled:opacity-50"
         >
           {busy === "pdf" ? "…" : "PDF"}
         </button>
         <button
           type="button"
           onClick={() => downloadReceiptJsonFile(sale)}
-          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white hover:border-teal-500/50 hover:bg-white/10"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-800 shadow-sm hover:border-teal-500 hover:bg-slate-50"
         >
           JSON
         </button>
@@ -84,7 +84,7 @@ export function ReceiptOutputActions({ sale, meta, className = "" }: Props) {
           href={buildWhatsAppShareUrl(shareText)}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-center text-xs font-semibold text-emerald-200 hover:border-emerald-400/50"
+          className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-900 hover:border-emerald-400"
         >
           WhatsApp
         </a>
@@ -92,12 +92,12 @@ export function ReceiptOutputActions({ sale, meta, className = "" }: Props) {
           href={buildTelegramShareUrl(shareText)}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-lg border border-sky-500/30 bg-sky-950/30 px-3 py-2 text-center text-xs font-semibold text-sky-200 hover:border-sky-400/50"
+          className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-center text-xs font-semibold text-sky-900 hover:border-sky-400"
         >
           Telegram
         </a>
       </div>
-      <p className="text-[10px] leading-snug text-neutral-500">
+      <p className="pos-data-log-muted text-[10px] leading-snug">
         Print/PDF embed 80-column layout, vendor block, footer, and fiscal OQR when configured under Receipt appearance.
         Share links use plain text; use PDF for full layout in chat.
       </p>
